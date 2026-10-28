@@ -1,21 +1,24 @@
 [gd_scene format=3 uid="uid://cbf3ie3f58i1o"]
 
 [ext_resource type="Script" uid="uid://bu13nx3e2pqay" path="res://scenes/player.gd" id="1_3vyb7"]
+[ext_resource type="PackedScene" uid="uid://cweolmjpvgtfk" path="res://assets/models/kaykit/Mage.glb" id="2_dqkch"]
+[ext_resource type="AnimationLibrary" uid="uid://d3p53sog0k4j5" path="res://assets/animations/Rig_Medium_General.glb" id="3_qlg0r"]
+[ext_resource type="AnimationLibrary" uid="uid://cap8d84qnqkte" path="res://assets/animations/Rig_Medium_MovementBasic.glb" id="4_tuyoq"]
 
-[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_b0pls"]
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_emq73"]
+[sub_resource type="CapsuleShape3D" id="CapsuleShape3D_g2els"]
+radius = 0.4
+height = 2.7446446
 
 [node name="Player" type="CharacterBody3D" unique_id=1616085178]
 script = ExtResource("1_3vyb7")
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="." unique_id=2037604627]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-shape = SubResource("CapsuleShape3D_b0pls")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3633224, 0)
+shape = SubResource("CapsuleShape3D_g2els")
+debug_color = Color(1.5014893, 0.40291524, 1.6141636, 0.9529412)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1144884935]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
-mesh = SubResource("CapsuleMesh_emq73")
+[node name="Model" parent="." unique_id=1913119753 instance=ExtResource("2_dqkch")]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)
 
 [node name="CameraPivot" type="Node3D" parent="." unique_id=1943306232]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
@@ -24,3 +27,8 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 spring_length = 4.0
 
 [node name="Camera3D" type="Camera3D" parent="CameraPivot/SpringArm3D" unique_id=971172588]
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=681132211]
+root_node = NodePath("../Model")
+libraries/Rig_Medium_General = ExtResource("3_qlg0r")
+libraries/Rig_Medium_MovementBasic = ExtResource("4_tuyoq")

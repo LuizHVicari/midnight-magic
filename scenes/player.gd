@@ -4,7 +4,12 @@ extends CharacterBody3D
 @export var jump_velocity: float = 5.0
 @export var mouse_sensitivity: float = 0.003
 
+const ANIM_IDLE := "Rig_Medium_General/Idle_A"
+const ANIM_RUN := "Rig_Medium_MovementBasic/Running_A"
+const ANIM_AIR := "Rig_Medium_MovementBasic/Jump_Idle"
+
 @onready var camera_pivot: Node3D = $CameraPivot
+@onready var anim: AnimationPlayer = $AnimationPlayer
 
 
 func _ready() -> void:
@@ -43,3 +48,17 @@ func _physics_process(delta: float) -> void:
 		velocity.z = move_toward(velocity.z, 0.0, speed)
 
 	move_and_slide()
+	_update_animation()
+
+
+func _update_animation() -> void:
+	var target: String
+	if not is_on_floor():
+		target = ANIM_AIR
+	elif Vector2(velocity.x, velocity.z).length() > 0.1:
+		target = ANIM_RUN
+	else:
+		target = ANIM_IDLE
+
+	if anim.current_animation != target:
+		anim.play(target, 0.2)  # 0.2s crossfade
