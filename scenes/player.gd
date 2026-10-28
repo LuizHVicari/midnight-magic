@@ -151,8 +151,9 @@ func _physics_process(delta: float) -> void:
 	_update_stance()
 
 	# There is no attack-while-moving animation, so a grounded attack roots the player. In the
-	# air the attack plays on top of the jump and movement carries on.
-	var rooted := attacking and is_on_floor()
+	# air the attack plays on top of the jump and movement carries on. Blocking roots too: the
+	# hero only turns towards the camera, never walks.
+	var rooted := (attacking or blocking) and is_on_floor()
 	var input_dir := Vector2.ZERO if rooted else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var yaw_basis := Basis(Vector3.UP, camera_pivot.rotation.y)
 	var direction := (yaw_basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
