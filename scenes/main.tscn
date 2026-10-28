@@ -34,7 +34,7 @@ rotation = Vector3(-0.877097, -2.613833, 0)
 light_color = Color(1, 0.96, 0.88, 1)
 light_energy = 1.15
 shadow_enabled = true
-directional_shadow_max_distance = 80.0
+directional_shadow_max_distance = 140.0
 
 [node name="World" type="Node3D" parent="." unique_id=1572092949]
 script = ExtResource("2_world")
