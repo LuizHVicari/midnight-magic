@@ -4,6 +4,7 @@ extends CharacterBody3D
 @export var jump_velocity: float = 5.0
 @export var mouse_sensitivity: float = 0.003
 @export var turn_speed: float = 10.0
+@export var max_step_height: float = 0.6
 
 const ANIM_IDLE := "Rig_Medium_General/Idle_A"
 const ANIM_RUN := "Rig_Medium_MovementBasic/Running_A"
@@ -12,6 +13,8 @@ const ANIM_ATTACK := "Rig_Medium_General/Throw"
 
 const WAND_SCENE := preload("res://assets/models/kaykit/wand.gltf")
 const HAND_BONE := "handslot.r"
+
+const STEP_PROBE_DISTANCE := 0.5
 
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var model: Node3D = $Model
@@ -22,6 +25,7 @@ var attacking := false
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	floor_snap_length = max_step_height  # stick to the ground when walking down steps
 	anim.animation_finished.connect(_on_animation_finished)
 	_equip_wand()
 
@@ -74,8 +78,36 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, 0.0, speed)
 		velocity.z = move_toward(velocity.z, 0.0, speed)
 
+	_step_up(delta)
 	move_and_slide()
 	_update_animation()
+
+
+## Lifts the body onto a low ledge in front of it, since CharacterBody3D has no step support.
+func _step_up(delta: float) -> void:
+	var motion := Vector3(velocity.x, 0.0, velocity.z) * delta
+	if not is_on_floor() or motion.is_zero_approx():
+		return
+
+	var hit := KinematicCollision3D.new()
+	if not test_move(global_transform, motion, hit) or hit.get_normal().y > 0.3:
+		return  # nothing in the way, or it is a walkable slope
+
+	# Probe far enough ahead that the whole capsule sits over the ledge top.
+	var probe := motion.normalized() * STEP_PROBE_DISTANCE
+	var raised := global_transform.translated(Vector3.UP * max_step_height)
+	if test_move(raised, probe):
+		return  # obstacle is taller than a step
+
+	var landing := KinematicCollision3D.new()
+	if not test_move(raised.translated(probe), Vector3.DOWN * max_step_height, landing):
+		return  # no ground on top of the ledge
+	if landing.get_normal().y < 0.5:
+		return
+
+	var rise := max_step_height - landing.get_travel().length()
+	if rise > 0.01:
+		global_position.y += rise
 
 
 func _attack() -> void:
