@@ -1,10 +1,10 @@
 extends CharacterBody3D
 
 @export var speed: float = 6.0
-@export var jump_velocity: float = 5.0
+@export var jump_velocity: float = 6.5
 @export var mouse_sensitivity: float = 0.003
 @export var turn_speed: float = 10.0
-@export var max_step_height: float = 0.6
+@export var max_step_height: float = 1.0
 
 const ANIM_IDLE := "Rig_Medium_General/Idle_A"
 const ANIM_RUN := "Rig_Medium_MovementBasic/Running_A"
@@ -25,7 +25,7 @@ var attacking := false
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
-	floor_snap_length = max_step_height  # stick to the ground when walking down steps
+	floor_snap_length = 0.4  # stick to the ground when walking down banks and steps
 	anim.animation_finished.connect(_on_animation_finished)
 	_equip_wand()
 
@@ -90,7 +90,7 @@ func _step_up(delta: float) -> void:
 		return
 
 	var hit := KinematicCollision3D.new()
-	if not test_move(global_transform, motion, hit) or hit.get_normal().y > 0.3:
+	if not test_move(global_transform, motion, hit) or hit.get_normal().y >= cos(floor_max_angle):
 		return  # nothing in the way, or it is a walkable slope
 
 	# Probe far enough ahead that the whole capsule sits over the ledge top.

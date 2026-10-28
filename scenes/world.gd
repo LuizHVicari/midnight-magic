@@ -95,6 +95,14 @@ func _in_camp(col: int, row: int) -> bool:
 	return col >= 0 and col <= 7 and row >= 38 and row <= 50
 
 
+## Rocks and logs block the player; flowers, grass and bushes are walk-through foliage.
+func _prop_collision(model: String) -> Kit.Collision:
+	for prefix in ["rock", "stone", "log"]:
+		if model.begins_with(prefix):
+			return Kit.Collision.MESH
+	return Kit.Collision.NONE
+
+
 func _jitter(col: float, row: float) -> Vector3:
 	var half := Kit.CELL * 0.4
 	return _cell_pos(col, row) + Vector3(_rng.randf_range(-half, half), 0.0, _rng.randf_range(-half, half))
@@ -115,12 +123,25 @@ func _mark_paved() -> void:
 
 
 func _build_ground() -> void:
+	# Safety floor far below the surface, in case something slips through a seam.
 	var center_z := _cell_pos(0, (ROWS - 1) * 0.5).z
-	Kit.add_block(self, Vector3(0, -0.5, center_z), Vector3(COLS * Kit.CELL, 1.0, ROWS * Kit.CELL))
+	Kit.add_block(self, Vector3(0, -1.5, center_z), Vector3(COLS * Kit.CELL, 1.0, ROWS * Kit.CELL))
+
+	# Grass is flat, so each run of grass cells in a row shares one box. Paved cells
+	# (path, road, stream) are sunken or raised, so they collide with their own mesh.
 	for row in ROWS:
-		for col in COLS:
-			if not _paved.has(Vector2i(col, row)):
+		var run_start := -1
+		for col in COLS + 1:
+			var grass := col < COLS and not _paved.has(Vector2i(col, row))
+			if grass:
+				if run_start < 0:
+					run_start = col
 				_place("nature", "ground_grass", _cell_pos(col, row))
+			elif run_start >= 0:
+				var cells := col - run_start
+				var mid := _cell_pos(run_start + (cells - 1) * 0.5, row)
+				Kit.add_block(self, mid + Vector3(0, -0.5, 0), Vector3(cells * Kit.CELL, 1.0, Kit.CELL))
+				run_start = -1
 
 
 func _build_boundaries() -> void:
@@ -138,14 +159,14 @@ func _build_roads() -> void:
 		if cell.y == ROW_STREAM:
 			continue
 		if cell.y > TOWN_S:
-			_place("nature", "ground_pathStraight", _cell_pos(cell.x, cell.y))
+			_place("nature", "ground_pathStraight", _cell_pos(cell.x, cell.y), 0.0, Kit.Collision.MESH)
 		else:
-			_place("town", "road", _cell_pos(cell.x, cell.y))
+			_place("town", "road", _cell_pos(cell.x, cell.y), 0.0, Kit.Collision.MESH)
 
 
 func _build_stream() -> void:
 	for col in COLS:
-		_place("nature", "ground_riverStraight", _cell_pos(col, ROW_STREAM), 90.0)
+		_place("nature", "ground_riverStraight", _cell_pos(col, ROW_STREAM), 90.0, Kit.Collision.MESH)
 	# The bridge deck sits 0.15 * scale above the model origin; sink it flush with the path.
 	var sink := -0.15 * Kit.PACK_SCALE["nature"]
 	_place("nature", "bridge_wood", _cell_pos(ROAD_COL, ROW_STREAM) + Vector3(0, sink, 0), 90.0, Kit.Collision.MESH)
@@ -258,7 +279,7 @@ func _scatter_nature() -> void:
 				_place("nature", model, _jitter(col, row), _rng.randf() * 360.0, Kit.Collision.TRUNK, _rng.randf_range(0.85, 1.25))
 			if _rng.randf() < 0.85:
 				var small: String = SMALL_PLANTS[_rng.randi() % SMALL_PLANTS.size()]
-				_place("nature", small, _jitter(col, row), _rng.randf() * 360.0, Kit.Collision.NONE, _rng.randf_range(0.8, 1.3))
+				_place("nature", small, _jitter(col, row), _rng.randf() * 360.0, _prop_collision(small), _rng.randf_range(0.8, 1.3))
 
 	# Flowers lining the path in the starting meadow.
 	for row in range(ROW_STREAM + 1, ROWS - 1):
