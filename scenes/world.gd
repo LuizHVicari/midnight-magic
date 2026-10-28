@@ -28,6 +28,7 @@ func _ready() -> void:
 
 	var scatter := Scatter.new()
 	scatter.name = "Scatter"
+	scatter.terrain = terrain
 	add_child(scatter)
 	for feature in features:
 		feature.populate(scatter)

@@ -83,7 +83,7 @@ func _ring_of_trees(scatter: Scatter) -> void:
 		var h := terrain.height_at(p.x, p.y)
 		scatter.add(
 			"nature", Vegetation.tree_model(rng, h), Vector3(p.x, h, p.y), rng.randf() * TAU,
-			rng.randf_range(0.9, 1.3), Scatter.Solid.TRUNK, 420.0, true,
+			Vegetation.tree_scale(rng), Scatter.Solid.TRUNK, 420.0, true,
 		)
 
 

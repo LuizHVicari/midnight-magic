@@ -294,7 +294,7 @@ func _build_plaza() -> void:
 		place("town", "stall-bench", c + out * 10.0, rad_to_deg(atan2(out.x, out.y)))
 	for k in 8:
 		var angle := TAU * k / 8.0
-		place("town", "tree", c + Vector2.from_angle(angle) * (plaza_radius - 3.0), rng.randf() * 360.0, Kit.Collision.TRUNK, 0.55)
+		place("town", "tree", c + Vector2.from_angle(angle) * (plaza_radius - 3.0), rng.randf() * 360.0, Kit.Collision.TRUNK, 0.9)
 	for k in 12:
 		place("town", "lantern", c + Vector2.from_angle(TAU * k / 12.0 + 0.2) * (plaza_radius - 0.6))
 	place("town", "cart", c + Vector2(-12.0, 8.0), 70.0, Kit.Collision.MESH)
@@ -309,7 +309,7 @@ func _plant_town_trees() -> void:
 		var p := center() + Vector2.from_angle(rng.randf() * TAU) * sqrt(rng.randf()) * radius
 		if not _inside_wall(p, 8.0) or p.distance_to(center()) < plaza_radius + 6.0 or _on_street(p, 4.0) or _near_house(p, 3.0):
 			continue
-		place("town", "tree", p, rng.randf() * 360.0, Kit.Collision.TRUNK, rng.randf_range(0.5, 0.7))
+		place("town", "tree", p, rng.randf() * 360.0, Kit.Collision.TRUNK, rng.randf_range(0.8, 1.1))
 		planted += 1
 
 

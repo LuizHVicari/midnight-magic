@@ -102,6 +102,15 @@ func normal_at(x: float, z: float) -> Vector3:
 	).normalized()
 
 
+## Lowest ground height at the center and eight points around it on a circle of [radius].
+func lowest_around(x: float, z: float, radius: float) -> float:
+	var low := height_at(x, z)
+	for k in 8:
+		var offset := Vector2.from_angle(k * TAU / 8.0) * radius
+		low = minf(low, height_at(x + offset.x, z + offset.y))
+	return low
+
+
 func is_water(x: float, z: float) -> bool:
 	var i := index_at(x, z)
 	return water_y[i] > NO_WATER * 0.5 and water_y[i] > heights[i]

@@ -28,6 +28,8 @@ const BOULDERS := [
 	"rock_tallA", "rock_tallB", "stone_tallA", "stone_tallB",
 ]
 
+## Kenney trees are tuned for a smaller hero; everything grows by this so they tower over ours.
+const TREE_SCALE := 1.6
 const TREE_SPACING := 6.0
 const PLANT_SPACING := 4.5
 
@@ -40,6 +42,11 @@ func _init() -> void:
 	_forest.frequency = 0.004
 	_forest.fractal_octaves = 3
 	_meadow.frequency = 0.03
+
+
+## Random size for a tree, already including [TREE_SCALE].
+static func tree_scale(random: RandomNumberGenerator) -> float:
+	return random.randf_range(0.85, 1.35) * TREE_SCALE
 
 
 ## Tree model suited to the altitude, with a little mixing between the bands.
@@ -61,11 +68,11 @@ func populate(scatter: Scatter) -> void:
 
 
 func _grid_jitter(index: int, spacing: float) -> float:
-	return -Terrain.HALF + (index + rng.randf()) * spacing
+	return -Terrain.PLAY_HALF + (index + rng.randf()) * spacing
 
 
 func _scatter_trees(scatter: Scatter) -> void:
-	var count := int(Terrain.SIZE / TREE_SPACING)
+	var count := int(Terrain.PLAY_HALF * 2.0 / TREE_SPACING)
 	for iz in count:
 		for ix in count:
 			var x := _grid_jitter(ix, TREE_SPACING)
@@ -80,13 +87,13 @@ func _scatter_trees(scatter: Scatter) -> void:
 				continue
 			var h := terrain.heights[i]
 			scatter.add(
-				"nature", tree_model(rng, h), Vector3(x, h, z), rng.randf() * TAU, rng.randf_range(0.85, 1.35),
+				"nature", tree_model(rng, h), Vector3(x, h, z), rng.randf() * TAU, tree_scale(rng),
 				Scatter.Solid.TRUNK, 420.0, true,
 			)
 
 
 func _scatter_ground_cover(scatter: Scatter) -> void:
-	var count := int(Terrain.SIZE / PLANT_SPACING)
+	var count := int(Terrain.PLAY_HALF * 2.0 / PLANT_SPACING)
 	for iz in count:
 		for ix in count:
 			var x := _grid_jitter(ix, PLANT_SPACING)
@@ -101,14 +108,14 @@ func _shore_cover(scatter: Scatter, pos: Vector3, yaw: float, roll: float) -> vo
 	if roll > 0.18:
 		return
 	var model: String = PEBBLES[rng.randi() % PEBBLES.size()]
-	scatter.add("nature", model, pos, yaw, rng.randf_range(0.8, 1.5), Scatter.Solid.NONE, 160.0)
+	scatter.add("nature", model, pos, yaw, rng.randf_range(0.8, 1.5), Scatter.Solid.NONE, 160.0, false, true)
 
 
 func _steep_cover(scatter: Scatter, pos: Vector3, yaw: float, roll: float) -> void:
 	if roll > 0.12:
 		return
 	var model: String = BOULDERS[rng.randi() % BOULDERS.size()]
-	scatter.add("nature", model, pos, yaw, rng.randf_range(1.0, 2.0), Scatter.Solid.ROCK, 300.0, true)
+	scatter.add("nature", model, pos, yaw, rng.randf_range(1.0, 2.0), Scatter.Solid.ROCK, 300.0, true, true)
 
 
 func _ground_cover_at(scatter: Scatter, i: int, x: float, z: float) -> void:
@@ -137,4 +144,5 @@ func _ground_cover_at(scatter: Scatter, i: int, x: float, z: float) -> void:
 		return
 	var model: String = pool[rng.randi() % pool.size()]
 	var solid := Scatter.Solid.ROCK if pool == BOULDERS else Scatter.Solid.NONE
-	scatter.add("nature", model, pos, yaw, rng.randf_range(0.8, 1.4), solid, 120.0 if pool != BOULDERS else 300.0)
+	var range_end := 120.0 if pool != BOULDERS else 300.0
+	scatter.add("nature", model, pos, yaw, rng.randf_range(0.8, 1.4), solid, range_end, false, pool == BOULDERS)

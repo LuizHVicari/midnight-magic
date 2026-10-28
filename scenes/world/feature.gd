@@ -40,7 +40,11 @@ func place(
 	scale_mult := 1.0,
 	lift := 0.0,
 ) -> Node3D:
-	var pos := Vector3(at.x, terrain.height_at(at.x, at.y) + lift, at.y)
+	var y := terrain.height_at(at.x, at.y)
+	if model.begins_with("rock") or model.begins_with("stone") or model.begins_with("statue"):
+		# Rest on the lowest ground under the footprint, a bit sunk, so slopes never leave a gap.
+		y = terrain.lowest_around(at.x, at.y, 0.25 * Kit.PACK_SCALE[pack] * scale_mult) - 0.15
+	var pos := Vector3(at.x, y + lift, at.y)
 	return place_at(pack, model, pos, yaw_deg, collision, scale_mult)
 
 

@@ -2,16 +2,21 @@ class_name Scatter
 extends Node3D
 ## Batches repeated props (trees, grass, rocks) into MultiMeshes per BLOCK x BLOCK meters, so a
 ## forest costs a few draw calls instead of thousands of nodes. Add everything with [add],
-## then call [flush] once. Solid props get cylinder colliders, one body per block.
+## then call [flush] once. Solid props get colliders, one body per block: trees a cylinder
+## sized from the real trunk, rocks their exact mesh.
 
 const BLOCK := 100.0
 
-## NONE walks through, TRUNK only collides at the base, ROCK collides across its footprint.
+## NONE walks through, TRUNK only collides at the trunk, ROCK follows the shape of the rock.
 enum Solid { NONE, TRUNK, ROCK }
 
+## Set by the world; lets [add] sit rocks on the lowest point under them.
+var terrain: Terrain
+
 var _batches := {}  # key -> {"pack", "model", "block", "range", "shadows", "xforms"}
-var _solids := {}  # block key -> Array of [Vector3 center, float radius, float height]
-var _parts := {}  # "pack/model" -> {"parts": [[Mesh, Transform3D]], "aabb": AABB}
+var _solids := {}  # block -> Array of {"solid", "pack", "model", "xf"}
+var _parts := {}  # "pack/model" -> {"parts": [[Mesh, Transform3D]], "aabb": AABB, "trunk": float, "rocks": []}
+var _cylinders := {}  # Vector2(radius, height) -> CylinderShape3D
 
 
 func add(
@@ -23,8 +28,11 @@ func add(
 	solid := Solid.NONE,
 	range_end := 140.0,
 	shadows := false,
+	fit_ground := false,
 ) -> void:
 	var world_scale: float = Kit.PACK_SCALE[pack] * scale_mult
+	if fit_ground and terrain != null:
+		pos.y = _lowest_under(pack, model, pos, world_scale)
 	var basis := Basis(Vector3.UP, yaw).scaled(Vector3.ONE * world_scale)
 	var block := Vector2i(floori(pos.x / BLOCK), floori(pos.z / BLOCK))
 	var key := "%s/%s|%d|%d|%d|%s" % [pack, model, block.x, block.y, int(range_end), shadows]
@@ -36,7 +44,9 @@ func add(
 	_batches[key]["xforms"].append(Transform3D(basis, pos))
 
 	if solid != Solid.NONE:
-		_add_solid(block, model_aabb(pack, model), pos, world_scale, solid)
+		if not _solids.has(block):
+			_solids[block] = []
+		_solids[block].append({"solid": solid, "pack": pack, "model": model, "xf": Transform3D(basis, pos)})
 
 
 func flush() -> void:
@@ -52,15 +62,12 @@ func model_aabb(pack: String, model: String) -> AABB:
 	return _model_parts(pack, model)["aabb"]
 
 
-func _add_solid(block: Vector2i, aabb: AABB, pos: Vector3, world_scale: float, solid: Solid) -> void:
-	var radius := 0.1 * world_scale
-	var height := 0.8 * world_scale
-	if solid == Solid.ROCK:
-		radius = 0.4 * maxf(aabb.size.x, aabb.size.z) * world_scale
-		height = maxf(aabb.size.y * world_scale, 0.5)
-	if not _solids.has(block):
-		_solids[block] = []
-	_solids[block].append([pos + Vector3(0.0, height * 0.5, 0.0), radius, height])
+## Rocks rest on the lowest ground under their footprint and sink a little, so a slope never
+## leaves them floating on the downhill side.
+func _lowest_under(pack: String, model: String, pos: Vector3, world_scale: float) -> float:
+	var aabb := model_aabb(pack, model)
+	var radius := 0.4 * maxf(aabb.size.x, aabb.size.z) * world_scale
+	return terrain.lowest_around(pos.x, pos.z, radius) - 0.1 * aabb.size.y * world_scale
 
 
 func _block_center(block: Vector2i) -> Vector3:
@@ -91,19 +98,38 @@ func _build_solids(block: Vector2i, solids: Array) -> void:
 	var center := _block_center(block)
 	var body := StaticBody3D.new()
 	body.position = center
-	var shapes := {}
 	for solid in solids:
-		var key := Vector2(snappedf(solid[1], 0.05), snappedf(solid[2], 0.05))
-		if not shapes.has(key):
-			var cylinder := CylinderShape3D.new()
-			cylinder.radius = key.x
-			cylinder.height = key.y
-			shapes[key] = cylinder
-		var collider := CollisionShape3D.new()
-		collider.shape = shapes[key]
-		collider.position = solid[0] - center
-		body.add_child(collider)
+		var xf: Transform3D = solid["xf"]
+		var local := Transform3D(xf.basis, xf.origin - center)
+		var data := _model_parts(solid["pack"], solid["model"])
+		if solid["solid"] == Solid.TRUNK:
+			_add_trunk(body, data, local)
+		else:
+			_add_rock(body, data, local)
 	add_child(body)
+
+
+func _add_trunk(body: StaticBody3D, data: Dictionary, local: Transform3D) -> void:
+	var world_scale := local.basis.get_scale().x
+	var aabb: AABB = data["aabb"]
+	var key := Vector2(snappedf(data["trunk"] * world_scale, 0.05), snappedf(aabb.size.y * world_scale * 0.5, 0.25))
+	if not _cylinders.has(key):
+		var cylinder := CylinderShape3D.new()
+		cylinder.radius = key.x
+		cylinder.height = key.y
+		_cylinders[key] = cylinder
+	var collider := CollisionShape3D.new()
+	collider.shape = _cylinders[key]
+	collider.position = local.origin + Vector3(0.0, key.y * 0.5, 0.0)
+	body.add_child(collider)
+
+
+func _add_rock(body: StaticBody3D, data: Dictionary, local: Transform3D) -> void:
+	for rock in data["rocks"]:
+		var collider := CollisionShape3D.new()
+		collider.shape = rock[0]
+		collider.transform = local * rock[1]
+		body.add_child(collider)
 
 
 ## Meshes of a Kenney model with their transform relative to the model root.
@@ -121,8 +147,32 @@ func _model_parts(pack: String, model: String) -> Dictionary:
 		aabb = (xf * mesh_node.get_aabb()) if first else aabb.merge(xf * mesh_node.get_aabb())
 		first = false
 	root.free()
-	_parts[key] = {"parts": parts, "aabb": aabb}
+	_parts[key] = {"parts": parts, "aabb": aabb, "trunk": _trunk_radius(parts, aabb), "rocks": _rock_shapes(parts)}
 	return _parts[key]
+
+
+## Widest reach of the lowest slice of the model: the trunk, roots included, capped so a low
+## wide crown never turns into an invisible wall.
+func _trunk_radius(parts: Array, aabb: AABB) -> float:
+	var limit := aabb.position.y + aabb.size.y * 0.08
+	var widest := 0.0
+	for part in parts:
+		for v in part[0].get_faces():
+			var p: Vector3 = part[1] * v
+			if p.y <= limit:
+				widest = maxf(widest, Vector2(p.x, p.z).length())
+	return clampf(widest, 0.02, 0.14)
+
+
+## Exact triangle collision, shared by every instance of the model. A convex hull would fill
+## in the ledges and steps of the rocks, leaving invisible slopes.
+func _rock_shapes(parts: Array) -> Array:
+	var shapes := []
+	for part in parts:
+		var shape: ConcavePolygonShape3D = part[0].create_trimesh_shape()
+		shape.backface_collision = true
+		shapes.append([shape, part[1]])
+	return shapes
 
 
 func _relative_transform(node: Node3D, root: Node3D) -> Transform3D:
