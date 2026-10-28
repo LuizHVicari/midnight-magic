@@ -33,7 +33,7 @@ static func build(
 						model = prefix + ("-door" if f == 0 else "-" + WINDOWS[0])
 					elif (i + j + f) % 2 == 0:
 						model = prefix + "-" + WINDOWS[(i + j + f) % WINDOWS.size()]
-					Kit.place(parent, "town", model, pos, EDGE_YAW[edge])
+					Kit.place(parent, "town", model, pos, EDGE_YAW[edge], Kit.Collision.NONE)
 
 	_roof(parent, nw, w, d, floors, roof)
 
@@ -61,4 +61,4 @@ static func _roof(parent: Node3D, nw: Vector3, w: int, d: int, floors: int, roof
 	var y := floors * Kit.CELL
 	for j in d:
 		for i in w:
-			Kit.place(parent, "town", model, nw + Vector3(i * Kit.CELL, y, j * Kit.CELL))
+			Kit.place(parent, "town", model, nw + Vector3(i * Kit.CELL, y, j * Kit.CELL), 0.0, Kit.Collision.NONE)

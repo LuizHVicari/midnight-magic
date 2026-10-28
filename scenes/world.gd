@@ -83,7 +83,7 @@ func _cell_pos(col: float, row: float) -> Vector3:
 	return Kit.cell_pos(col, row, ROAD_COL, SPAWN_ROW)
 
 
-func _place(pack: String, model: String, pos: Vector3, yaw := 0.0, collision := Kit.Collision.NONE, scale_mult := 1.0) -> Node3D:
+func _place(pack: String, model: String, pos: Vector3, yaw := 0.0, collision := Kit.Collision.AUTO, scale_mult := 1.0) -> Node3D:
 	return Kit.place(self, pack, model, pos, yaw, collision, scale_mult)
 
 
@@ -93,14 +93,6 @@ func _in_town(col: float, row: float) -> bool:
 
 func _in_camp(col: int, row: int) -> bool:
 	return col >= 0 and col <= 7 and row >= 38 and row <= 50
-
-
-## Rocks and logs block the player; flowers, grass and bushes are walk-through foliage.
-func _prop_collision(model: String) -> Kit.Collision:
-	for prefix in ["rock", "stone", "log"]:
-		if model.begins_with(prefix):
-			return Kit.Collision.MESH
-	return Kit.Collision.NONE
 
 
 func _jitter(col: float, row: float) -> Vector3:
@@ -279,7 +271,7 @@ func _scatter_nature() -> void:
 				_place("nature", model, _jitter(col, row), _rng.randf() * 360.0, Kit.Collision.TRUNK, _rng.randf_range(0.85, 1.25))
 			if _rng.randf() < 0.85:
 				var small: String = SMALL_PLANTS[_rng.randi() % SMALL_PLANTS.size()]
-				_place("nature", small, _jitter(col, row), _rng.randf() * 360.0, _prop_collision(small), _rng.randf_range(0.8, 1.3))
+				_place("nature", small, _jitter(col, row), _rng.randf() * 360.0, Kit.Collision.AUTO, _rng.randf_range(0.8, 1.3))
 
 	# Flowers lining the path in the starting meadow.
 	for row in range(ROW_STREAM + 1, ROWS - 1):
