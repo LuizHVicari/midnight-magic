@@ -4,10 +4,12 @@ extends Node3D
 ## edit freely; [finalize] then turns them into mesh chunks with trimesh collision plus one
 ## water mesh. Coordinates are meters, the map is centered on the origin, +z is south.
 
-const SIZE := 1000.0
+## The playable area is PLAY_HALF * 2 square; a 50 m ring of tall mountains around it walls it in.
+const PLAY_HALF := 500.0
+const SIZE := 1100.0
 const HALF := SIZE * 0.5
 const STEP := 2.0
-const CELLS := 500
+const CELLS := 550
 const N := CELLS + 1
 const CHUNK_CELLS := 25
 const NO_WATER := -1.0e9
@@ -39,7 +41,8 @@ func _init() -> void:
 	keep_clear.resize(count)
 
 
-## Rolling hills in the middle, rising into mountain ridges towards the map edge.
+## Rolling hills in the middle, rising into mountain ridges towards the edge of the playable
+## area and into an unclimbable range just beyond it.
 func generate_base(seed_value: int) -> void:
 	var hills := _noise(seed_value, 0.0016, 4, FastNoiseLite.FRACTAL_FBM)
 	var bumps := _noise(seed_value + 1, 0.012, 2, FastNoiseLite.FRACTAL_FBM)
@@ -49,10 +52,13 @@ func generate_base(seed_value: int) -> void:
 		for ix in N:
 			var x := ix * STEP - HALF
 			var z := iz * STEP - HALF
-			var rim := smoothstep(0.78, 1.0, maxf(absf(x), absf(z)) / HALF)
+			var edge := maxf(absf(x), absf(z)) / PLAY_HALF
+			var rim := smoothstep(0.78, 1.0, edge)
+			var range_wall := smoothstep(1.0, 1.09, edge)
 			var h := 12.0 + hills.get_noise_2d(x, z) * 34.0 + rolls.get_noise_2d(x, z) * 11.0
 			h += bumps.get_noise_2d(x, z) * 2.5
 			h += rim * (45.0 + ridges.get_noise_2d(x, z) * 30.0)
+			h += range_wall * (110.0 + ridges.get_noise_2d(x, z) * 40.0)
 			heights[iz * N + ix] = h
 
 

@@ -1,7 +1,9 @@
 extends CharacterBody3D
 
 @export var speed: float = 6.0
-@export var jump_velocity: float = 6.5
+@export var jump_velocity: float = 9.0
+@export var gravity_scale: float = 2.2
+@export var fall_multiplier: float = 1.3
 @export var mouse_sensitivity: float = 0.003
 @export var turn_speed: float = 10.0
 @export var max_step_height: float = 1.0
@@ -85,7 +87,10 @@ func _process(delta: float) -> void:
 
 func _physics_process(delta: float) -> void:
 	if not is_on_floor():
-		velocity += get_gravity() * delta
+		var gravity := get_gravity() * gravity_scale
+		if velocity.y < 0.0:
+			gravity *= fall_multiplier
+		velocity += gravity * delta
 
 	if Input.is_action_just_pressed("jump") and is_on_floor():
 		velocity.y = jump_velocity
