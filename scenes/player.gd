@@ -8,14 +8,31 @@ extends CharacterBody3D
 const ANIM_IDLE := "Rig_Medium_General/Idle_A"
 const ANIM_RUN := "Rig_Medium_MovementBasic/Running_A"
 const ANIM_AIR := "Rig_Medium_MovementBasic/Jump_Idle"
+const ANIM_ATTACK := "Rig_Medium_General/Throw"
+
+const WAND_SCENE := preload("res://assets/models/kaykit/wand.gltf")
+const HAND_BONE := "handslot.r"
 
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var model: Node3D = $Model
 @onready var anim: AnimationPlayer = $AnimationPlayer
 
+var attacking := false
+
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	anim.animation_finished.connect(_on_animation_finished)
+	_equip_wand()
+
+
+func _equip_wand() -> void:
+	var skeleton: Skeleton3D = model.find_child("Skeleton3D", true, false)
+	var hand := BoneAttachment3D.new()
+	hand.name = "WandAttachment"
+	hand.bone_name = HAND_BONE
+	skeleton.add_child(hand)
+	hand.add_child(WAND_SCENE.instantiate())
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -26,6 +43,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			deg_to_rad(-70.0),
 			deg_to_rad(30.0),
 		)
+
+	if event.is_action_pressed("attack") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		_attack()
 
 	if event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -58,7 +78,22 @@ func _physics_process(delta: float) -> void:
 	_update_animation()
 
 
+func _attack() -> void:
+	if attacking:
+		return
+	attacking = true
+	anim.play(ANIM_ATTACK, 0.1)
+
+
+func _on_animation_finished(anim_name: StringName) -> void:
+	if anim_name == ANIM_ATTACK:
+		attacking = false
+
+
 func _update_animation() -> void:
+	if attacking:
+		return
+
 	var target: String
 	if not is_on_floor():
 		target = ANIM_AIR
