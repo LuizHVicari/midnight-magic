@@ -5,6 +5,10 @@ extends CharacterBody3D
 @export var mouse_sensitivity: float = 0.003
 @export var turn_speed: float = 10.0
 @export var max_step_height: float = 1.0
+@export var zoom_min: float = 1.5
+@export var zoom_max: float = 10.0
+@export var zoom_step: float = 0.5
+@export var zoom_smoothing: float = 10.0
 
 const ANIM_IDLE := "Rig_Medium_General/Idle_A"
 const ANIM_RUN := "Rig_Medium_MovementBasic/Running_A"
@@ -17,14 +21,17 @@ const HAND_BONE := "handslot.r"
 const STEP_PROBE_DISTANCE := 0.5
 
 @onready var camera_pivot: Node3D = $CameraPivot
+@onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
 @onready var model: Node3D = $Model
 @onready var anim: AnimationPlayer = $AnimationPlayer
 
 var attacking := false
+var target_zoom: float
 
 
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	target_zoom = spring_arm.spring_length
 	floor_snap_length = 0.4  # stick to the ground when walking down banks and steps
 	anim.animation_finished.connect(_on_animation_finished)
 	_equip_wand()
@@ -48,6 +55,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			deg_to_rad(30.0),
 		)
 
+	if event is InputEventMouseButton and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		_handle_zoom(event)
+
 	if event.is_action_pressed("attack") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		_attack()
 
@@ -55,6 +65,22 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event is InputEventMouseButton and event.pressed:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+func _handle_zoom(event: InputEventMouseButton) -> void:
+	match event.button_index:
+		MOUSE_BUTTON_WHEEL_UP:
+			target_zoom = clampf(target_zoom - zoom_step, zoom_min, zoom_max)
+		MOUSE_BUTTON_WHEEL_DOWN:
+			target_zoom = clampf(target_zoom + zoom_step, zoom_min, zoom_max)
+
+
+func _process(delta: float) -> void:
+	spring_arm.spring_length = lerpf(
+		spring_arm.spring_length,
+		target_zoom,
+		1.0 - exp(-zoom_smoothing * delta),
+	)
 
 
 func _physics_process(delta: float) -> void:
