@@ -6,6 +6,7 @@
 [ext_resource type="AnimationLibrary" uid="uid://cap8d84qnqkte" path="res://assets/animations/Rig_Medium_MovementBasic.glb" id="4_tuyoq"]
 [ext_resource type="AnimationLibrary" uid="uid://b7s838syk4ei" path="res://assets/animations/Rig_Medium_MovementAdvanced.glb" id="5_advanced"]
 [ext_resource type="AnimationLibrary" uid="uid://tpjcxuviar8" path="res://assets/animations/Rig_Medium_CombatMelee.glb" id="6_melee"]
+[ext_resource type="Script" path="res://scenes/ui/stats_hud.gd" id="7_hud"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_g2els"]
 radius = 0.4
@@ -29,6 +30,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 spring_length = 4.0
 
 [node name="Camera3D" type="Camera3D" parent="CameraPivot/SpringArm3D" unique_id=971172588]
+
+[node name="Hud" type="CanvasLayer" parent="."]
+script = ExtResource("7_hud")
 
 [node name="AnimationPlayer" type="AnimationPlayer" parent="." unique_id=681132211]
 root_node = NodePath("../Model")

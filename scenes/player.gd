@@ -6,6 +6,12 @@ extends CharacterBody3D
 @export var block_multiplier: float = 0.5
 @export var crouch_height: float = 1.7
 @export var crouch_camera_drop: float = 0.5
+@export var max_stamina: float = 100.0
+@export var sprint_drain: float = 12.0  # per second while sprinting
+@export var walk_regen: float = 6.0  # per second while moving without sprinting
+@export var idle_regen: float = 20.0  # per second while standing still
+@export var regen_delay: float = 0.7  # pause after sprinting before stamina comes back
+@export var exhausted_recover: float = 0.3  # fraction needed to sprint again after running dry
 @export var jump_velocity: float = 9.0
 @export var gravity_scale: float = 2.2
 @export var fall_multiplier: float = 1.3
@@ -27,6 +33,8 @@ const LOOPED_ANIMS := [ANIM_WALK, ANIM_CROUCH, ANIM_SNEAK, ANIM_BLOCK]
 const ANIM_AIR := "Rig_Medium_MovementBasic/Jump_Idle"
 const ANIM_ATTACK := "Rig_Medium_General/Throw"
 
+signal stamina_changed(value: float, maximum: float, exhausted: bool)
+
 const WAND_SCENE := preload("res://assets/models/kaykit/wand.gltf")
 const HAND_BONE := "handslot.r"
 
@@ -44,6 +52,9 @@ var attacking := false
 var blocking := false
 var crouching := false
 var sprinting := false
+var stamina := 0.0
+var exhausted := false
+var _regen_timer := 0.0
 var _last_forward_tap := -1000.0
 var _double_tap_sprint := false
 var target_zoom: float
@@ -58,6 +69,9 @@ func _ready() -> void:
 	_stand_height = (body_shape.shape as CapsuleShape3D).height
 	_stand_center_y = body_shape.position.y
 	_pivot_rest_y = camera_pivot.position.y
+	stamina = max_stamina
+	stamina_changed.connect($Hud.add_bar(StatBar.Kind.STAMINA, true).set_value)
+	stamina_changed.emit(stamina, max_stamina, exhausted)
 	for anim_name in LOOPED_ANIMS:
 		anim.get_animation(anim_name).loop_mode = Animation.LOOP_LINEAR
 	floor_snap_length = 0.4  # stick to the ground when walking down banks and steps
@@ -154,6 +168,8 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, 0.0, move_speed)
 		velocity.z = move_toward(velocity.z, 0.0, move_speed)
 
+	_update_stamina(delta, direction != Vector3.ZERO)
+
 	if blocking:
 		# Keep the guard up towards where the camera looks, strafing instead of turning.
 		model.rotation.y = lerp_angle(model.rotation.y, camera_pivot.rotation.y + PI, turn_speed * delta)
@@ -167,7 +183,27 @@ func _update_stance() -> void:
 	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
 	blocking = captured and not attacking and Input.is_action_pressed("block")
 	_set_crouching(Input.is_action_pressed("crouch"))
-	sprinting = (Input.is_action_pressed("sprint") or _double_tap_sprint) and not crouching and not blocking
+	var wants_sprint := Input.is_action_pressed("sprint") or _double_tap_sprint
+	sprinting = wants_sprint and not crouching and not blocking and not exhausted
+
+
+## Sprinting drains stamina. After a short pause it comes back slowly while walking and fast
+## while standing still. Running dry exhausts the hero until a chunk has recovered.
+func _update_stamina(delta: float, moving: bool) -> void:
+	var before := stamina
+	var was_exhausted := exhausted
+	if sprinting and moving:
+		stamina = maxf(stamina - sprint_drain * delta, 0.0)
+		_regen_timer = regen_delay
+	else:
+		_regen_timer = maxf(_regen_timer - delta, 0.0)
+		var regen := walk_regen if moving else idle_regen
+		stamina = stamina if _regen_timer > 0.0 else minf(stamina + regen * delta, max_stamina)
+
+	exhausted = stamina <= 0.0 or (exhausted and stamina < max_stamina * exhausted_recover)
+	_double_tap_sprint = _double_tap_sprint and not exhausted
+	if not is_equal_approx(before, stamina) or exhausted != was_exhausted:
+		stamina_changed.emit(stamina, max_stamina, exhausted)
 
 
 func _move_speed() -> float:
