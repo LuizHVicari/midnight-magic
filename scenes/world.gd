@@ -14,6 +14,15 @@ const TOWN_S := 27  # gate row
 const TOWN_W := 2
 const TOWN_E := 16
 
+# Kenney path and river tiles have their flat margin 0.05 units below the grass tile, and
+# the town road tile stands 0.026 units above it. Shift them so every surface meets the
+# grass at the same height, otherwise a vertical wall shows at the seam.
+const NATURE_TILE_LIFT := 0.05 * 5.0
+const ROAD_TILE_DROP := 0.026 * 5.0
+
+# The bridge deck sits above the ground so it never shares a plane with the water.
+const BRIDGE_DECK_HEIGHT := 0.3
+
 const CAMP_COL := 4.0
 const CAMP_ROW := 44.0
 
@@ -119,8 +128,9 @@ func _build_ground() -> void:
 	var center_z := _cell_pos(0, (ROWS - 1) * 0.5).z
 	Kit.add_block(self, Vector3(0, -1.5, center_z), Vector3(COLS * Kit.CELL, 1.0, ROWS * Kit.CELL))
 
-	# Grass is flat, so each run of grass cells in a row shares one box. Paved cells
-	# (path, road, stream) are sunken or raised, so they collide with their own mesh.
+	# Each run of grass cells in a row is one textured strip plus one flat collision box.
+	# Paved cells (path, road, stream) are sunken or raised, so they use their own mesh.
+	var material := _grass_material()
 	for row in ROWS:
 		var run_start := -1
 		for col in COLS + 1:
@@ -128,12 +138,30 @@ func _build_ground() -> void:
 			if grass:
 				if run_start < 0:
 					run_start = col
-				_place("nature", "ground_grass", _cell_pos(col, row))
 			elif run_start >= 0:
-				var cells := col - run_start
-				var mid := _cell_pos(run_start + (cells - 1) * 0.5, row)
-				Kit.add_block(self, mid + Vector3(0, -0.5, 0), Vector3(cells * Kit.CELL, 1.0, Kit.CELL))
+				_add_grass_strip(run_start, col - run_start, row, material)
 				run_start = -1
+
+
+func _grass_material() -> ShaderMaterial:
+	var material := ShaderMaterial.new()
+	material.shader = load("res://assets/shaders/grass_ground.gdshader")
+	material.set_shader_parameter("patches", load("res://assets/textures/patterns/pattern37.png"))
+	material.set_shader_parameter("tufts", load("res://assets/textures/patterns/pattern56.png"))
+	return material
+
+
+func _add_grass_strip(first_col: int, cells: int, row: int, material: Material) -> void:
+	var mid := _cell_pos(first_col + (cells - 1) * 0.5, row)
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(cells * Kit.CELL, Kit.CELL)
+	var strip := MeshInstance3D.new()
+	strip.mesh = plane
+	strip.material_override = material
+	strip.position = mid
+	strip.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(strip)
+	Kit.add_block(self, mid + Vector3(0, -0.5, 0), Vector3(cells * Kit.CELL, 1.0, Kit.CELL))
 
 
 func _build_boundaries() -> void:
@@ -151,17 +179,17 @@ func _build_roads() -> void:
 		if cell.y == ROW_STREAM:
 			continue
 		if cell.y > TOWN_S:
-			_place("nature", "ground_pathStraight", _cell_pos(cell.x, cell.y), 0.0, Kit.Collision.MESH)
+			_place("nature", "ground_pathStraight", _cell_pos(cell.x, cell.y) + Vector3(0, NATURE_TILE_LIFT, 0), 0.0, Kit.Collision.MESH)
 		else:
-			_place("town", "road", _cell_pos(cell.x, cell.y), 0.0, Kit.Collision.MESH)
+			_place("town", "road", _cell_pos(cell.x, cell.y) - Vector3(0, ROAD_TILE_DROP, 0), 0.0, Kit.Collision.MESH)
 
 
 func _build_stream() -> void:
 	for col in COLS:
-		_place("nature", "ground_riverStraight", _cell_pos(col, ROW_STREAM), 90.0, Kit.Collision.MESH)
-	# The bridge deck sits 0.15 * scale above the model origin; sink it flush with the path.
-	var sink := -0.15 * Kit.PACK_SCALE["nature"]
-	_place("nature", "bridge_wood", _cell_pos(ROAD_COL, ROW_STREAM) + Vector3(0, sink, 0), 90.0, Kit.Collision.MESH)
+		_place("nature", "ground_riverStraight", _cell_pos(col, ROW_STREAM) + Vector3(0, NATURE_TILE_LIFT, 0), 90.0, Kit.Collision.MESH)
+	# The deck sits 0.15 * scale above the model origin; offset so it ends up BRIDGE_DECK_HEIGHT above ground.
+	var offset := BRIDGE_DECK_HEIGHT - 0.15 * Kit.PACK_SCALE["nature"]
+	_place("nature", "bridge_wood", _cell_pos(ROAD_COL, ROW_STREAM) + Vector3(0, offset, 0), 90.0, Kit.Collision.MESH)
 
 
 # --- town ---------------------------------------------------------------------
