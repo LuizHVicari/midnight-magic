@@ -39,6 +39,8 @@ const WAND_SCENE := preload("res://assets/models/kaykit/wand.gltf")
 const HAND_BONE := "handslot.r"
 
 const STEP_PROBE_DISTANCE := 0.5
+const SHIELD_DISTANCE := 1.6
+const SHIELD_HEIGHT := 1.2
 ## Two forward taps within this many seconds start a sprint that lasts until forward is released.
 const DOUBLE_TAP_WINDOW := 0.3
 
@@ -49,7 +51,13 @@ const DOUBLE_TAP_WINDOW := 0.3
 @onready var body_shape: CollisionShape3D = $CollisionShape3D
 
 var attacking := false
-var blocking := false
+var blocking := false:
+	set(value):
+		if value == blocking:
+			return
+		blocking = value
+		if _shield:
+			_shield.raise() if blocking else _shield.lower()
 var crouching := false
 var sprinting := false
 var stamina := 0.0
@@ -58,6 +66,7 @@ var _regen_timer := 0.0
 var _last_forward_tap := -1000.0
 var _double_tap_sprint := false
 var target_zoom: float
+var _shield := MagicShield.new()
 var _stand_height: float
 var _stand_center_y: float
 var _pivot_rest_y: float
@@ -77,6 +86,7 @@ func _ready() -> void:
 	floor_snap_length = 0.4  # stick to the ground when walking down banks and steps
 	anim.animation_finished.connect(_on_animation_finished)
 	_equip_wand()
+	add_child(_shield)
 
 
 func _equip_wand() -> void:
@@ -86,6 +96,7 @@ func _equip_wand() -> void:
 	hand.bone_name = HAND_BONE
 	skeleton.add_child(hand)
 	hand.add_child(WAND_SCENE.instantiate())
+	_shield.wand = hand
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -129,6 +140,7 @@ func _handle_zoom(event: InputEventMouseButton) -> void:
 
 
 func _process(delta: float) -> void:
+	_place_shield()
 	spring_arm.spring_length = lerpf(
 		spring_arm.spring_length,
 		target_zoom,
@@ -178,6 +190,15 @@ func _physics_process(delta: float) -> void:
 	_step_up(delta)
 	move_and_slide()
 	_update_animation()
+
+
+## Holds the circle in front of the hero, facing along the camera.
+func _place_shield() -> void:
+	var yaw := camera_pivot.rotation.y
+	var forward := Vector3(-sin(yaw), 0.0, -cos(yaw))
+	var height := SHIELD_HEIGHT - (crouch_camera_drop if crouching else 0.0)
+	_shield.position = forward * SHIELD_DISTANCE + Vector3.UP * height
+	_shield.rotation.y = yaw
 
 
 func _update_stance() -> void:
