@@ -5,6 +5,8 @@ extends Resource
 
 @export var display_name := ""
 @export var color := Color.WHITE
+## Extra damage against soaked targets (0.5 = +50%): lets light conduct through water.
+@export var wet_bonus := 0.0
 @export var attack_script: GDScript
 
 

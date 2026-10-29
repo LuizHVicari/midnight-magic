@@ -17,7 +17,7 @@ extends CharacterBody3D
 @export var mana_regen: float = 8.0  # per second
 @export var mana_regen_delay: float = 1.0  # pause after casting before mana comes back
 @export var primary: Element = preload("res://scenes/combat/elements/shadow.tres")
-@export var secondary: Element = preload("res://scenes/combat/elements/wind.tres")
+@export var secondary: Element = preload("res://scenes/combat/elements/water.tres")
 @export var jump_velocity: float = 9.0
 @export var gravity_scale: float = 2.2
 @export var fall_multiplier: float = 1.3

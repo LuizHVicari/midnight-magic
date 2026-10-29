@@ -74,3 +74,25 @@ static func in_cone(node: Node3D, origin: Vector3, direction: Vector3, reach: fl
 			continue
 		found.append({"health": candidate, "distance": offset.length(), "offset": offset})
 	return found
+
+
+## Living targets along a thick beam, each with its distance, that are not hidden behind something.
+## The beam is [param base_radius] wide at [param origin] and opens by [param half_angle_deg] as
+## it goes, up to [param reach]. Unlike [method in_cone] it still catches a target close in front
+## of the caster, whose single focus point sits far off a narrow cone's axis.
+static func in_beam(node: Node3D, origin: Vector3, direction: Vector3, reach: float, base_radius: float, half_angle_deg: float, exclude: Array[RID] = []) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	var spread := tan(deg_to_rad(half_angle_deg))
+	for candidate: Health in node.get_tree().get_nodes_in_group("damageable"):
+		var point := candidate.focus_point()
+		var offset := point - origin
+		var along := offset.dot(direction)
+		if not candidate.is_alive() or along < 0.0 or along > reach:
+			continue
+		if (offset - direction * along).length() > base_radius + along * spread:
+			continue
+		var blocker := raycast(node, origin, point, exclude)
+		if not blocker.is_empty() and blocker["collider"] != candidate.get_parent():
+			continue
+		found.append({"health": candidate, "distance": along, "offset": offset})
+	return found

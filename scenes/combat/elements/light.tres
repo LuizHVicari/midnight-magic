@@ -7,4 +7,5 @@
 script = ExtResource("1_element")
 display_name = "Light"
 color = Color(1, 0.8, 0.3, 1)
+wet_bonus = 0.5
 attack_script = ExtResource("2_attack")
