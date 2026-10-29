@@ -10,6 +10,8 @@ extends CanvasLayer
 const MARGIN := Vector2(28.0, 24.0)
 const SPACING := 8
 
+var _badge: ProgressBadge
+
 var _column := VBoxContainer.new()
 
 
@@ -32,3 +34,11 @@ func add_bar(kind: StatBar.Kind, fade_when_full := false) -> StatBar:
 			slot += 1
 	_column.move_child(bar, slot)
 	return bar
+
+
+## The level, experience and coins panel under the bars; created on first use.
+func badge() -> ProgressBadge:
+	if _badge == null:
+		_badge = ProgressBadge.new()
+		_column.add_child(_badge)
+	return _badge

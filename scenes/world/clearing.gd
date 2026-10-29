@@ -104,6 +104,7 @@ func _meadow(scatter: Scatter) -> void:
 
 func _camp() -> void:
 	var fire := center()
+	_camp_foes(fire)
 	place("survival", "campfire-pit", fire, 0.0, Kit.Collision.MESH)
 	add_night_light(Vector3(fire.x, terrain.height_at(fire.x, fire.y) + 1.4, fire.y), Color(1.0, 0.58, 0.25), 4.5, 22.0, true)
 	place("nature", "log", fire + Vector2(5.0, 1.8), 80.0, Kit.Collision.MESH)
@@ -119,6 +120,13 @@ func _camp() -> void:
 	place("survival", "chest", fire + Vector2(11.5, -6.5), -30.0, Kit.Collision.MESH)
 	place("survival", "workbench", fire + Vector2(12.5, 0.0), -90.0, Kit.Collision.MESH)
 	place("survival", "signpost", fire + Vector2(-radius * 0.8, radius * 0.6), 20.0, Kit.Collision.MESH)
+
+
+## The group of enemies that live here, spawned around the fire.
+func _camp_foes(fire: Vector2) -> void:
+	var camp := FoeCamp.for_position(fire)
+	camp.position = Vector3(0.0, terrain.height_at(fire.x, fire.y), 0.0)
+	add_child(camp)
 
 
 func _stones(scatter: Scatter) -> void:

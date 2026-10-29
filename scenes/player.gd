@@ -49,12 +49,21 @@ const ANIM_AIR := "Rig_Medium_MovementBasic/Jump_Idle"
 signal stamina_changed(value: float, maximum: float, exhausted: bool)
 signal mana_changed(value: float, maximum: float)
 signal item_collected(item: String, count: int)
+signal leveled_up(level: int)
 
 const WAND_SCENE := preload("res://assets/models/kaykit/wand.gltf")
 const HAND_BONE := "handslot.r"
 
 const STEP_PROBE_DISTANCE := 0.5
 const LOOT_COLOR := Color(1.0, 0.82, 0.35)
+const XP_COLOR := Color(0.5, 0.9, 0.85)
+## Share of the damage of a blocked hit that gets through.
+const BLOCK_TAKEN := 0.3
+## What each level adds to the hero.
+const LEVEL_HEALTH := 12.0
+const LEVEL_MANA := 8.0
+const LEVEL_STAMINA := 6.0
+const LEVEL_POWER := 0.08  # share of extra spell damage per level
 ## How close the hero has to be to a corpse to loot it.
 const INTERACT_RANGE := 3.0
 const SHIELD_DISTANCE := 1.6
@@ -86,6 +95,8 @@ var health := Health.new()
 ## Where the hero returns after dying; the world sets it.
 var respawn_point := Vector3.ZERO
 var inventory := {}  # item name -> count
+var level := 1
+var xp := 0
 var _since_hurt := 0.0
 var _regen_timer := 0.0
 var _mana_timer := 0.0
@@ -120,6 +131,7 @@ func _ready() -> void:
 	mana = max_mana
 	mana_changed.connect($Hud.add_bar(StatBar.Kind.MANA).set_value)
 	mana_changed.emit(mana, max_mana)
+	_setup_progress()
 	_primary_attack = _equip_spell(primary)
 	_secondary_attack = _equip_spell(secondary)
 	for anim_name in LOOPED_ANIMS:
@@ -134,12 +146,68 @@ func _build_health() -> void:
 	health.name = "Health"
 	health.maximum = max_health
 	health.targetable = false  # spells never lock on to the hero
+	health.hero = true
+	health.damage_filter = _soften_blocked_hits
 	add_child(health)
 	health.changed.connect($Hud.add_bar(StatBar.Kind.HEALTH).set_value)
 	health.changed.emit(health.value, health.maximum)
 	health.damaged.connect(func(_amount: float, _element: Element) -> void: _since_hurt = 0.0)
 	health.pushed.connect(func(shove: Vector3) -> void: velocity += shove)
 	health.died.connect(_on_died)
+
+
+## Hits from the front while the guard is up land for a fraction of their damage.
+func _soften_blocked_hits(amount: float, _element: Element, from: Vector3) -> float:
+	if not blocking or from == Vector3.INF:
+		return amount
+	var forward := Vector3(-sin(camera_pivot.rotation.y), 0.0, -cos(camera_pivot.rotation.y))
+	var toward := from - global_position
+	toward.y = 0.0
+	return amount * BLOCK_TAKEN if forward.angle_to(toward) < deg_to_rad(75.0) else amount
+
+
+# --- level, experience and coins ---------------------------------------------------------------
+
+## Experience needed to get from [param at_level] to the next one.
+static func xp_for(at_level: int) -> int:
+	return int(40.0 * pow(at_level, 1.4))
+
+
+func _setup_progress() -> void:
+	Health.spell_power = 1.0
+	var badge: ProgressBadge = $Hud.badge()
+	badge.set_level(level)
+	badge.set_xp(xp, xp_for(level))
+	badge.set_coins(0)
+	item_collected.connect(func(item: String, _count: int) -> void: badge.set_coins(int(inventory.get("Coins", 0))))
+	leveled_up.connect(func(new_level: int) -> void: badge.set_level(new_level, true))
+
+
+## Experience from a kill. Leveling up makes the hero tougher and their spells stronger.
+func gain_xp(amount: int) -> void:
+	xp += amount
+	DamagePopup.spawn(get_parent(), global_position + Vector3.UP * 3.3, "+%d XP" % amount, XP_COLOR)
+	while xp >= xp_for(level):
+		xp -= xp_for(level)
+		_level_up()
+	var badge: ProgressBadge = $Hud.badge()
+	badge.set_xp(xp, xp_for(level))
+
+
+func _level_up() -> void:
+	level += 1
+	max_health += LEVEL_HEALTH
+	max_mana += LEVEL_MANA
+	max_stamina += LEVEL_STAMINA
+	Health.spell_power = 1.0 + LEVEL_POWER * (level - 1)
+	health.maximum = max_health
+	health.restore()
+	mana = max_mana
+	stamina = max_stamina
+	mana_changed.emit(mana, max_mana)
+	stamina_changed.emit(stamina, max_stamina, exhausted)
+	DamagePopup.spawn(get_parent(), global_position + Vector3.UP * 3.9, "LEVEL %d!" % level, Color(1.0, 0.9, 0.4))
+	leveled_up.emit(level)
 
 
 func _on_died() -> void:
@@ -167,6 +235,13 @@ func noise_level() -> float:
 	if moving:
 		level = 2.0 if sprinting else (0.35 if crouching else 1.0)
 	return level + (1.5 if attacking else 0.0)
+
+
+## Points of the body that enemies try to see: head and chest. Crouching lowers them, so low
+## cover (a log, a rock) can hide a crouching hero completely and a standing one only partly.
+func cover_points() -> PackedVector3Array:
+	var heights := [0.45, 1.15] if crouching else [0.9, 2.0]
+	return PackedVector3Array([global_position + Vector3.UP * heights[0], global_position + Vector3.UP * heights[1]])
 
 
 ## How easy the hero is to spot: crouching hides, running stands out.

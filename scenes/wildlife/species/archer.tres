@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="FoeSpecies" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scenes/wildlife/foe_species.gd" id="1_species"]
+[ext_resource type="PackedScene" path="res://assets/models/kaykit/Ranger.glb" id="2_model"]
+[ext_resource type="PackedScene" path="res://assets/models/kaykit/bow.gltf" id="3_wr"]
+
+[resource]
+script = ExtResource("1_species")
+display_name = "Bandit Archer"
+models = Array[PackedScene]([ExtResource("2_model")])
+weapon_right = ExtResource("3_wr")
+tint = Color(0.62, 0.7, 0.62, 1)
+model_scale = 1.0
+behavior = 0
+temperament = 2
+body_radius = 0.4
+body_height = 2.3
+turn_speed = 9.0
+max_health = 38.0
+walk_speed = 1.9
+run_speed = 5.4
+sight_range = 40.0
+sight_angle = 85.0
+hearing_range = 8.0
+attack_cooldown = 2.2
+attack_push = 3.0
+style = 1
+damage = 9.0
+reach = 2.4
+stab_damage = 4.0
+arrow_speed = 26.0
+preferred_range = Vector2(11, 17)
+alertness = 1.25
+leash = 70.0
+patrol_radius = 7.0
+xp = 16
+coins = Vector2i(3, 7)
+poise = false

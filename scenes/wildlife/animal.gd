@@ -58,12 +58,18 @@ func _ready() -> void:
 	_build_body()
 	_build_health()
 	_build_plate()
-	add_to_group("animals")
+	_join_groups()
 	var lod := Timer.new()
 	lod.wait_time = LOD_EVERY
 	lod.autostart = true
 	lod.timeout.connect(_update_lod)
 	add_child(lod)
+
+
+## Wild animals are tracked by the [WildlifeManager] through this group; other creatures that
+## extend Animal (the camp foes) use their own so the manager never counts or removes them.
+func _join_groups() -> void:
+	add_to_group("animals")
 
 
 ## Vertex-painted fur shared by every animal: the models carry their colors in the vertices.
@@ -199,9 +205,14 @@ func _build_health() -> void:
 func _build_plate() -> void:
 	_plate.position.y = species.body_height + 0.8
 	var hostile := species.temperament == Species.Temperament.AGGRESSIVE
-	_plate.setup(species.display_name, Color(1.0, 0.5, 0.45) if hostile else Color(0.96, 0.94, 0.84))
+	_plate.setup(_plate_title(), Color(1.0, 0.5, 0.45) if hostile else Color(0.96, 0.94, 0.84))
 	add_child(_plate)
 	health.changed.connect(func(value: float, maximum: float) -> void: _plate.set_ratio(value / maximum))
+
+
+## The text over the health bar.
+func _plate_title() -> String:
+	return species.display_name
 
 
 ## The health bar shows while the animal is fighting: hurt, or a hunter that has noticed the hero.
@@ -311,10 +322,15 @@ func _die() -> void:
 	_roll_loot()
 	_corpse = create_tween()
 	_corpse.tween_property(self, "global_position:y", landing, 0.5).set_ease(Tween.EASE_IN)
-	_corpse.parallel().tween_property(_model, "rotation:z", deg_to_rad(80.0), 0.35).set_trans(Tween.TRANS_BOUNCE)
 	_corpse.tween_callback(_offer_loot)
 	_corpse.tween_interval(CORPSE_TIME)
 	_corpse.tween_callback(_fade_away)
+	_play_death()
+
+
+## How the body goes down: animals topple over and freeze.
+func _play_death() -> void:
+	create_tween().tween_property(_model, "rotation:z", deg_to_rad(80.0), 0.35).set_trans(Tween.TRANS_BOUNCE)
 	if _animation_player != null:
 		_animation_player.pause()
 

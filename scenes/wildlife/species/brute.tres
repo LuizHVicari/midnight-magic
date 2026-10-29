@@ -1,0 +1,41 @@
+[gd_resource type="Resource" script_class="FoeSpecies" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scenes/wildlife/foe_species.gd" id="1_species"]
+[ext_resource type="PackedScene" path="res://assets/models/kaykit/Knight.glb" id="2_model"]
+[ext_resource type="PackedScene" path="res://assets/models/kaykit/sword_2handed.gltf" id="3_wr"]
+[ext_resource type="PackedScene" path="res://assets/models/kaykit/shield_spikes.gltf" id="4_wl"]
+
+[resource]
+script = ExtResource("1_species")
+display_name = "Bandit Brute"
+models = Array[PackedScene]([ExtResource("2_model")])
+weapon_right = ExtResource("3_wr")
+weapon_left = ExtResource("4_wl")
+tint = Color(0.72, 0.5, 0.5, 1)
+behavior = 0
+temperament = 2
+body_height = 2.3
+turn_speed = 9.0
+max_health = 150.0
+walk_speed = 1.6
+run_speed = 3.4
+sight_range = 16.0
+sight_angle = 130.0
+hearing_range = 14.0
+attack_cooldown = 2.4
+attack_push = 9.0
+model_scale = 1.1
+body_radius = 0.5
+style = 2
+damage = 24.0
+reach = 2.7
+windup = 0.95
+attack_animation = "Melee_2H_Attack_Chop"
+attack_speed = 0.85
+guard_taken = 0.45
+poise = true
+alertness = 0.7
+leash = 60.0
+patrol_radius = 6.0
+xp = 40
+coins = Vector2i(8, 16)

@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="FoeSpecies" load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scenes/wildlife/foe_species.gd" id="1_species"]
+[ext_resource type="PackedScene" path="res://assets/models/kaykit/Barbarian.glb" id="2_model"]
+[ext_resource type="PackedScene" path="res://assets/models/kaykit/axe_1handed.gltf" id="3_wr"]
+
+[resource]
+script = ExtResource("1_species")
+display_name = "Bandit"
+models = Array[PackedScene]([ExtResource("2_model")])
+weapon_right = ExtResource("3_wr")
+tint = Color(1, 0.72, 0.62, 1)
+model_scale = 1.0
+behavior = 0
+temperament = 2
+body_radius = 0.4
+body_height = 2.3
+turn_speed = 9.0
+max_health = 55.0
+walk_speed = 1.9
+run_speed = 5.0
+sight_range = 24.0
+sight_angle = 110.0
+hearing_range = 11.0
+attack_cooldown = 1.6
+attack_push = 4.0
+style = 0
+damage = 11.0
+reach = 2.2
+windup = 0.5
+attack_animation = "Melee_1H_Attack_Chop"
+attack_speed = 1.0
+alertness = 1.0
+leash = 65.0
+patrol_radius = 9.0
+xp = 14
+coins = Vector2i(2, 6)
+poise = false

@@ -25,6 +25,18 @@ const STUN_BONUS := 0.25  # extra damage from other elements while stunned
 @export var focus_height := 1.2
 ## Whether spells may pick this as a target. The hero's own health is not.
 @export var targetable := true
+## The hero's own health. Spells of the hero are multiplied by [member spell_power]; the hero's
+## own damage taken is never scaled by it.
+@export var hero := false
+
+## How much stronger the hero's spells are, grown by leveling up. Applies to anything that is
+## damaged by an element while not being the hero.
+static var spell_power := 1.0
+
+## Lets the owner change damage before it lands: called with (amount, element, from) and returns
+## the new amount. Blocking and guarding use it. [param from] is where the hit came from, or
+## [constant Vector3.INF] when unknown.
+var damage_filter := Callable()
 
 var value := 0.0
 var _burn_dps := 0.0
@@ -151,9 +163,13 @@ func focus_point() -> Vector3:
 	return (get_parent() as Node3D).global_position + Vector3.UP * focus_height
 
 
-func take_damage(amount: float, element: Element = null) -> void:
+func take_damage(amount: float, element: Element = null, from := Vector3.INF) -> void:
 	if not is_alive():
 		return
+	if element != null and not hero:
+		amount *= spell_power
+	if damage_filter.is_valid():
+		amount = damage_filter.call(amount, element, from)
 	if element != null and is_wet():
 		amount *= 1.0 + element.wet_bonus
 	if _stun_left > 0.0 and element != _stun_element:
