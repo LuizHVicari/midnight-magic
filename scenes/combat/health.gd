@@ -10,6 +10,7 @@ signal burning_changed(burning: bool)
 signal cursed_changed(stacks: int)
 ## 1.0 means normal speed; below that the owner is slowed.
 signal slowed_changed(factor: float)
+signal stunned_changed(stunned: bool)
 ## Something shoved the owner; whoever moves it decides how far it really goes.
 signal pushed(velocity: Vector3)
 signal died
@@ -17,6 +18,7 @@ signal died
 const BURN_TICK := 0.5
 const CURSE_TICK := 0.5
 const WET_TIME := 4.0  # how long a soaking lasts after the last jet
+const STUN_BONUS := 0.25  # extra damage from other elements while stunned
 
 @export var maximum := 100.0
 ## Height above the owner's origin that homing attacks aim at.
@@ -35,6 +37,8 @@ var _curse_element: Element
 var _slow_factor := 1.0
 var _slow_left := 0.0
 var _wet_left := 0.0
+var _stun_left := 0.0
+var _stun_element: Element
 
 
 static func of(node: Node) -> Health:
@@ -50,6 +54,7 @@ func _process(delta: float) -> void:
 	_tick_burn(delta)
 	_tick_curse(delta)
 	_tick_slow(delta)
+	_tick_stun(delta)
 
 
 func _tick_burn(delta: float) -> void:
@@ -76,6 +81,22 @@ func _tick_curse(delta: float) -> void:
 		_lift_curse()
 
 
+func _tick_stun(delta: float) -> void:
+	if _stun_left <= 0.0:
+		return
+	_stun_left -= delta
+	if _stun_left <= 0.0 or not is_alive():
+		_end_stun()
+
+
+func _end_stun() -> void:
+	var was := _stun_left > 0.0 or _stun_element != null
+	_stun_left = 0.0
+	_stun_element = null
+	if was:
+		stunned_changed.emit(false)
+
+
 func _tick_slow(delta: float) -> void:
 	_wet_left = maxf(_wet_left - delta, 0.0)
 	if _slow_left <= 0.0:
@@ -99,6 +120,12 @@ func is_burning() -> bool:
 	return _burn_left > 0.0
 
 
+## Stunned targets cannot act or move (whatever drives the owner checks this), and take extra
+## damage from every element except the one that stunned them.
+func is_stunned() -> bool:
+	return _stun_left > 0.0
+
+
 ## Soaked by water a moment ago; some elements hit wet targets harder.
 func is_wet() -> bool:
 	return _wet_left > 0.0
@@ -118,6 +145,8 @@ func take_damage(amount: float, element: Element = null) -> void:
 		return
 	if element != null and is_wet():
 		amount *= 1.0 + element.wet_bonus
+	if _stun_left > 0.0 and element != _stun_element:
+		amount *= 1.0 + STUN_BONUS
 	value = maxf(value - amount, 0.0)
 	damaged.emit(amount, element)
 	changed.emit(value, maximum)
@@ -179,6 +208,17 @@ func douse() -> void:
 	_extinguish()
 
 
+## Stuns the owner for [param duration] seconds; a longer stun replaces a shorter one.
+func stun(duration: float, element: Element = null) -> void:
+	if not is_alive():
+		return
+	var was := _stun_left > 0.0
+	_stun_left = maxf(_stun_left, duration)
+	_stun_element = element
+	if not was:
+		stunned_changed.emit(true)
+
+
 func restore() -> void:
 	value = maximum
 	_extinguish()
@@ -186,6 +226,7 @@ func restore() -> void:
 	_slow_left = 0.0
 	_wet_left = 0.0
 	_slow_factor = 1.0
+	_end_stun()
 	changed.emit(value, maximum)
 
 

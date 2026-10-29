@@ -3,8 +3,15 @@ extends RefCounted
 ## Physics queries and damage helpers the spells share.
 
 
+## Physics layers: 1 is the world and everything spells can hit; 2 is stone cover that bodies bump
+## into but spells fly through.
+const WORLD := 1
+const STONE := 2
+
+
+## Ray that only sees [constant WORLD], so spells pass through stone cover.
 static func raycast(node: Node3D, from: Vector3, to: Vector3, exclude: Array[RID] = []) -> Dictionary:
-	var query := PhysicsRayQueryParameters3D.create(from, to)
+	var query := PhysicsRayQueryParameters3D.create(from, to, WORLD)
 	query.exclude = exclude
 	return node.get_world_3d().direct_space_state.intersect_ray(query)
 

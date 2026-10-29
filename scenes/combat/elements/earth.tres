@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="Element" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/combat/element.gd" id="1_element"]
+[ext_resource type="Script" path="res://scenes/combat/earth_attack.gd" id="2_attack"]
+
+[resource]
+script = ExtResource("1_element")
+display_name = "Earth"
+color = Color(0.85, 0.55, 0.28, 1)
+attack_script = ExtResource("2_attack")
