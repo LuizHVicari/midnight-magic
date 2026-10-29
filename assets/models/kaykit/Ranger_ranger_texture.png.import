@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://c062attfjh3q2"
 path.s3tc="res://.godot/imported/Ranger_ranger_texture.png-3072d373f076ec44d115b25d50683264.s3tc.ctex"
+path.etc2="res://.godot/imported/Ranger_ranger_texture.png-3072d373f076ec44d115b25d50683264.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/kaykit/Ranger_ranger_texture.png"
-dest_files=["res://.godot/imported/Ranger_ranger_texture.png-3072d373f076ec44d115b25d50683264.s3tc.ctex"]
+dest_files=["res://.godot/imported/Ranger_ranger_texture.png-3072d373f076ec44d115b25d50683264.s3tc.ctex", "res://.godot/imported/Ranger_ranger_texture.png-3072d373f076ec44d115b25d50683264.etc2.ctex"]
 
 [params]
 

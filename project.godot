@@ -10,8 +10,8 @@ config_version=5
 
 [application]
 
-config/name="midnight magic"
-run/main_scene="uid://dc2l102c0r8aa"
+config/name="Midnight Magic"
+run/main_scene="res://scenes/ui/main_menu.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 config/icon="res://icon.svg"
 
@@ -88,4 +88,6 @@ interact={
 
 [rendering]
 
+textures/vram_compression/import_s3tc_bptc=true
+textures/vram_compression/import_etc2_astc=true
 rendering_device/driver.windows="d3d12"
