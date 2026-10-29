@@ -16,8 +16,8 @@ extends CharacterBody3D
 @export var max_mana: float = 100.0
 @export var mana_regen: float = 8.0  # per second
 @export var mana_regen_delay: float = 1.0  # pause after casting before mana comes back
-@export var primary: Element = preload("res://scenes/combat/elements/shadow.tres")
-@export var secondary: Element = preload("res://scenes/combat/elements/earth.tres")
+@export var primary: Element = preload("res://scenes/combat/elements/light.tres")
+@export var secondary: Element = preload("res://scenes/combat/elements/wind.tres")
 @export var jump_velocity: float = 9.0
 @export var gravity_scale: float = 2.2
 @export var fall_multiplier: float = 1.3
@@ -304,6 +304,8 @@ func _step_up(delta: float) -> void:
 	var hit := KinematicCollision3D.new()
 	if not test_move(global_transform, motion, hit) or hit.get_normal().y >= cos(floor_max_angle):
 		return  # nothing in the way, or it is a walkable slope
+	if (hit.get_collider() as Node).is_in_group(Kit.NO_STEP_GROUP):
+		return  # logs and stumps stop the hero even though they are low
 
 	# Probe far enough ahead that the whole capsule sits over the ledge top.
 	var probe := motion.normalized() * STEP_PROBE_DISTANCE

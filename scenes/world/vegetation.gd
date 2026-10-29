@@ -30,6 +30,13 @@ const BOULDERS := [
 
 ## Kenney trees are tuned for a smaller hero; everything grows by this so they tower over ours.
 const TREE_SCALE := 1.6
+## Small plants stay closer to life size, so a flower reaches the hero's knee, not his hat.
+## These multiply the kit scale on top of the per-instance randomness.
+const GRASS_SIZE := 0.55
+const BUSH_SIZE := 0.65
+const FLOWER_SIZE := 0.5
+const MUSHROOM_SIZE := 0.5
+const PEBBLE_SIZE := 0.6
 const TREE_SPACING := 6.0
 const PLANT_SPACING := 4.5
 
@@ -108,7 +115,7 @@ func _shore_cover(scatter: Scatter, pos: Vector3, yaw: float, roll: float) -> vo
 	if roll > 0.18:
 		return
 	var model: String = PEBBLES[rng.randi() % PEBBLES.size()]
-	scatter.add("nature", model, pos, yaw, rng.randf_range(0.8, 1.5), Scatter.Solid.NONE, 160.0, false, true)
+	scatter.add("nature", model, pos, yaw, rng.randf_range(0.8, 1.5) * PEBBLE_SIZE, Scatter.Solid.NONE, 160.0, false, true)
 
 
 func _steep_cover(scatter: Scatter, pos: Vector3, yaw: float, roll: float) -> void:
@@ -131,18 +138,23 @@ func _ground_cover_at(scatter: Scatter, i: int, x: float, z: float) -> void:
 		return
 	var patch := _meadow.get_noise_2d(x, z)
 	var pool := GRASS
+	var size := GRASS_SIZE
 	if patch > 0.35:
 		pool = FLOWERS
+		size = FLOWER_SIZE
 	elif patch < -0.4:
 		pool = BUSHES
+		size = BUSH_SIZE
 	elif roll < 0.03:
 		pool = MUSHROOMS
+		size = MUSHROOM_SIZE
 	elif roll < 0.05:
 		pool = BOULDERS
+		size = 1.0
 	var chance := 0.55 if pool != BOULDERS else 1.0
 	if rng.randf() > chance:
 		return
 	var model: String = pool[rng.randi() % pool.size()]
 	var solid := Scatter.Solid.ROCK if pool == BOULDERS else Scatter.Solid.NONE
 	var range_end := 120.0 if pool != BOULDERS else 300.0
-	scatter.add("nature", model, pos, yaw, rng.randf_range(0.8, 1.4), solid, range_end, false, pool == BOULDERS)
+	scatter.add("nature", model, pos, yaw, rng.randf_range(0.8, 1.4) * size, solid, range_end, false, pool == BOULDERS)

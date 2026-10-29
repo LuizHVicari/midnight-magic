@@ -90,10 +90,12 @@ func _ring_of_trees(scatter: Scatter) -> void:
 func _meadow(scatter: Scatter) -> void:
 	for k in int(radius * 9.0):
 		var p := _on_disc(1.0)
-		var pool: Array = Vegetation.FLOWERS if rng.randf() < 0.85 else Vegetation.MUSHROOMS
+		var flowers := rng.randf() < 0.85
+		var pool: Array = Vegetation.FLOWERS if flowers else Vegetation.MUSHROOMS
+		var size := Vegetation.FLOWER_SIZE if flowers else Vegetation.MUSHROOM_SIZE
 		var model: String = pool[rng.randi() % pool.size()]
 		var pos := Vector3(p.x, terrain.height_at(p.x, p.y), p.y)
-		scatter.add("nature", model, pos, rng.randf() * TAU, rng.randf_range(0.9, 1.5))
+		scatter.add("nature", model, pos, rng.randf() * TAU, rng.randf_range(0.9, 1.5) * size)
 	for k in 2:
 		place("nature", "log", _on_disc(0.8), rng.randf() * 360.0)
 	for k in 3:
@@ -129,7 +131,7 @@ func _stones(scatter: Scatter) -> void:
 	for k in 6:
 		var p := _on_disc(0.45)
 		var pos := Vector3(p.x, terrain.height_at(p.x, p.y), p.y)
-		scatter.add("nature", "mushroom_redGroup", pos, rng.randf() * TAU, rng.randf_range(1.0, 1.6))
+		scatter.add("nature", "mushroom_redGroup", pos, rng.randf() * TAU, rng.randf_range(1.0, 1.6) * Vegetation.MUSHROOM_SIZE)
 
 
 ## A collapsed rectangular enclosure: walls with gaps, broken pillars and rubble.

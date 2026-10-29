@@ -14,8 +14,12 @@ enum Collision { AUTO, NONE, MESH, TRUNK }
 ## ground tiles and banners are deliberately absent: they are walk-through or have their
 ## own terrain collision.
 const TRUNK_PREFIXES := ["tree"]
+## Group of solid bodies the hero's step-up never climbs, however low they are.
+const NO_STEP_GROUP := "no_step"
+## Low obstacles that should still stop the hero instead of being stepped over.
+const NO_STEP_PREFIXES := ["log", "stump"]
 const MESH_PREFIXES := [
-	"rock", "stone", "log", "cliff", "statue", "bridge", "campfire", "tent", "barrel", "box",
+	"rock", "stone", "log", "stump", "cliff", "statue", "bridge", "campfire", "tent", "barrel", "box",
 	"chest", "workbench", "signpost", "sign", "fountain", "stall", "cart", "windmill",
 	"watermill", "pillar", "lantern", "hedge", "fence", "wall",
 ]
@@ -45,9 +49,17 @@ static func place(
 	match collision:
 		Collision.MESH:
 			_add_mesh_collision(inst)
+			_forbid_stepping(inst, model)
 		Collision.TRUNK:
 			_add_trunk_collision(parent, pos, PACK_SCALE[pack] * scale_mult)
 	return inst
+
+
+static func _forbid_stepping(inst: Node, model: String) -> void:
+	for prefix in NO_STEP_PREFIXES:
+		if model.begins_with(prefix):
+			for body in inst.find_children("*", "StaticBody3D", true, false):
+				body.add_to_group(NO_STEP_GROUP)
 
 
 static func _auto_collision(model: String) -> Collision:
@@ -76,8 +88,18 @@ static func add_block(parent: Node3D, center: Vector3, size: Vector3, yaw_deg :=
 static func _add_mesh_collision(node: Node) -> void:
 	if node is MeshInstance3D:
 		node.create_trimesh_collision()
+		_solid_both_sides(node)
 	for child in node.get_children():
 		_add_mesh_collision(child)
+
+
+## A trimesh only blocks from its front side by default, and many Kenney pieces have their
+## faces turned the other way, so something walked into from outside would let the hero through.
+static func _solid_both_sides(mesh_node: Node) -> void:
+	for body in mesh_node.find_children("*", "CollisionShape3D", true, false):
+		var shape := (body as CollisionShape3D).shape as ConcavePolygonShape3D
+		if shape != null:
+			shape.backface_collision = true
 
 
 ## Trees only collide at the trunk, which is cheaper than the full canopy mesh.
