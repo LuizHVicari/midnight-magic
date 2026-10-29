@@ -1,0 +1,66 @@
+[gd_resource type="Resource" script_class="Species" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scenes/wildlife/species.gd" id="1_species"]
+[ext_resource type="Script" path="res://scenes/wildlife/loot_entry.gd" id="2_loot"]
+[ext_resource type="PackedScene" path="res://assets/models/animals/duck.glb" id="m0"]
+
+[sub_resource type="Resource" id="Loot_0"]
+script = ExtResource("2_loot")
+item = "Duck Feather"
+chance = 0.9
+min_count = 1
+max_count = 2
+
+[sub_resource type="Resource" id="Loot_1"]
+script = ExtResource("2_loot")
+item = "Duck Meat"
+chance = 0.8
+min_count = 1
+max_count = 1
+
+[sub_resource type="Resource" id="Loot_2"]
+script = ExtResource("2_loot")
+item = "Egg"
+chance = 0.25
+min_count = 1
+max_count = 1
+
+[resource]
+script = ExtResource("1_species")
+models = Array[PackedScene]([ExtResource("m0")])
+display_name = "Duck"
+model_scale = 1.0
+behavior = 0
+temperament = 1
+max_health = 14.0
+walk_speed = 1.2
+run_speed = 4.5
+turn_speed = 7.0
+home_radius = 14.0
+swims = true
+float_depth = 0.12
+sight_range = 22.0
+sight_angle = 250.0
+hearing_range = 12.0
+safe_distance = 28.0
+body_radius = 0.3
+body_height = 0.6
+spawn_weight = 6.0
+max_alive = 10
+group_min = 2
+group_max = 5
+group_spread = 8.0
+min_player_distance = 35.0
+water = 2
+min_flatness = 0.0
+animations = {
+"eat": "Duck_peck_water",
+"idle": "Duck_idle",
+"run": "Duck_run_wing",
+"sleep": "Duck_sleep",
+"swim": "Duck_swim",
+"swim_flee": "Duck_flapping_water",
+"swim_idle": "Duck_idle_swim",
+"walk": "Duck_walk"
+}
+loot = Array[ExtResource("2_loot")]([SubResource("Loot_0"), SubResource("Loot_1"), SubResource("Loot_2")])

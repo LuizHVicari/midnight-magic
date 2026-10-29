@@ -12,6 +12,7 @@ const TOWN_CENTER := Vector2(0.0, -50.0)
 
 
 func _ready() -> void:
+	Perches.clear()
 	var terrain := Terrain.new()
 	terrain.name = "Terrain"
 	add_child(terrain)
@@ -37,6 +38,7 @@ func _ready() -> void:
 	_build_boundaries()
 	_spawn_player(terrain)
 	_place_training_dummies(terrain)
+	add_child(WildlifeManager.new())
 
 
 func _layout() -> Array[Feature]:
@@ -45,7 +47,7 @@ func _layout() -> Array[Feature]:
 	var big_lake := Lake.create(Vector2(300, 150), 75.0, 2.6)
 	var tarn := Lake.create(Vector2(-265, -170), 42.0, 2.0)
 
-	var features: Array[Feature] = [town, big_lake, tarn, Vegetation.new(), WildlifeSpawner.new()]
+	var features: Array[Feature] = [town, big_lake, tarn, Vegetation.new()]
 
 	# Water: a river across the road to the big lake, a creek down to the tarn.
 	features.append(River.create(_pts([

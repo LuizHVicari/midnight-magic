@@ -33,6 +33,9 @@ func add(
 	var world_scale: float = Kit.PACK_SCALE[pack] * scale_mult
 	if fit_ground and terrain != null:
 		pos.y = _lowest_under(pack, model, pos, world_scale)
+	if solid == Solid.TRUNK and model.begins_with("tree"):
+		var box := model_aabb(pack, model)
+		Perches.add(pos, box.size.y * world_scale, maxf(box.size.x, box.size.z) * 0.5 * world_scale)
 	var basis := Basis(Vector3.UP, yaw).scaled(Vector3.ONE * world_scale)
 	var block := Vector2i(floori(pos.x / BLOCK), floori(pos.z / BLOCK))
 	var key := "%s/%s|%d|%d|%d|%s" % [pack, model, block.x, block.y, int(range_end), shadows]

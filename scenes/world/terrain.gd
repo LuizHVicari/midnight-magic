@@ -117,6 +117,11 @@ func is_water(x: float, z: float) -> bool:
 	return water_y[i] > NO_WATER * 0.5 and water_y[i] > heights[i]
 
 
+## Height of the water surface at a point; only meaningful where [method is_water] is true.
+func water_level_at(x: float, z: float) -> float:
+	return water_y[index_at(x, z)]
+
+
 func in_bounds(x: float, z: float, margin := 0.0) -> bool:
 	return absf(x) < HALF - margin and absf(z) < HALF - margin
 

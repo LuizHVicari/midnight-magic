@@ -1,0 +1,53 @@
+[gd_resource type="Resource" script_class="Species" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scenes/wildlife/species.gd" id="1_species"]
+[ext_resource type="Script" path="res://scenes/wildlife/loot_entry.gd" id="2_loot"]
+[ext_resource type="PackedScene" path="res://assets/models/animals/owl_a.glb" id="m0"]
+[ext_resource type="PackedScene" path="res://assets/models/animals/owl_b.glb" id="m1"]
+
+[sub_resource type="Resource" id="Loot_0"]
+script = ExtResource("2_loot")
+item = "Owl Feather"
+chance = 0.9
+min_count = 1
+max_count = 2
+
+[sub_resource type="Resource" id="Loot_1"]
+script = ExtResource("2_loot")
+item = "Owl Talon"
+chance = 0.35
+min_count = 1
+max_count = 1
+
+[resource]
+script = ExtResource("1_species")
+models = Array[PackedScene]([ExtResource("m0"), ExtResource("m1")])
+display_name = "Owl"
+model_scale = 1.2
+behavior = 2
+temperament = 1
+max_health = 25.0
+walk_speed = 2.0
+run_speed = 9.0
+turn_speed = 6.0
+sight_range = 9.0
+sight_angle = 300.0
+hearing_range = 4.0
+safe_distance = 40.0
+flee_distance = 5.0
+body_radius = 0.3
+body_height = 0.7
+spawn_weight = 2.0
+max_alive = 3
+group_min = 1
+group_max = 1
+min_player_distance = 30.0
+trees_min = 12
+animations = {
+"fly": "fly",
+"idle": "idle",
+"land": "landing",
+"look": "headtwist",
+"sleep": "sleep"
+}
+loot = Array[ExtResource("2_loot")]([SubResource("Loot_0"), SubResource("Loot_1")])

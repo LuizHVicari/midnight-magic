@@ -1,0 +1,61 @@
+[gd_resource type="Resource" script_class="Species" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scenes/wildlife/species.gd" id="1_species"]
+[ext_resource type="Script" path="res://scenes/wildlife/loot_entry.gd" id="2_loot"]
+[ext_resource type="PackedScene" path="res://assets/models/animals/fox.glb" id="m0"]
+
+[sub_resource type="Resource" id="Loot_0"]
+script = ExtResource("2_loot")
+item = "Fox Pelt"
+chance = 0.85
+min_count = 1
+max_count = 1
+
+[sub_resource type="Resource" id="Loot_1"]
+script = ExtResource("2_loot")
+item = "Fox Tail"
+chance = 0.4
+min_count = 1
+max_count = 1
+
+[sub_resource type="Resource" id="Loot_2"]
+script = ExtResource("2_loot")
+item = "Raw Meat"
+chance = 0.7
+min_count = 1
+max_count = 2
+
+[resource]
+script = ExtResource("1_species")
+models = Array[PackedScene]([ExtResource("m0")])
+display_name = "Fox"
+model_scale = 0.8
+behavior = 0
+temperament = 1
+max_health = 30.0
+walk_speed = 2.0
+run_speed = 8.0
+turn_speed = 9.0
+home_radius = 35.0
+sight_range = 30.0
+sight_angle = 200.0
+hearing_range = 16.0
+safe_distance = 40.0
+body_radius = 0.35
+body_height = 0.8
+spawn_weight = 2.5
+max_alive = 3
+group_min = 1
+group_max = 1
+min_player_distance = 50.0
+min_flatness = 0.85
+trees_min = 2
+animations = {
+"idle": "Fox_idle",
+"look": "Fox_look",
+"run": "Fox_run",
+"sit": "Fox_sit",
+"sleep": "Fox_sleep",
+"walk": "Fox_walk"
+}
+loot = Array[ExtResource("2_loot")]([SubResource("Loot_0"), SubResource("Loot_1"), SubResource("Loot_2")])

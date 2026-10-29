@@ -1,0 +1,53 @@
+[gd_resource type="Resource" script_class="Species" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scenes/wildlife/species.gd" id="1_species"]
+[ext_resource type="Script" path="res://scenes/wildlife/loot_entry.gd" id="2_loot"]
+[ext_resource type="PackedScene" path="res://assets/models/animals/squirrel.glb" id="m0"]
+
+[sub_resource type="Resource" id="Loot_0"]
+script = ExtResource("2_loot")
+item = "Squirrel Tail"
+chance = 0.6
+min_count = 1
+max_count = 1
+
+[sub_resource type="Resource" id="Loot_1"]
+script = ExtResource("2_loot")
+item = "Squirrel Meat"
+chance = 0.8
+min_count = 1
+max_count = 1
+
+[resource]
+script = ExtResource("1_species")
+models = Array[PackedScene]([ExtResource("m0")])
+display_name = "Squirrel"
+model_scale = 1.0
+behavior = 0
+temperament = 1
+max_health = 8.0
+walk_speed = 1.8
+run_speed = 7.0
+turn_speed = 12.0
+home_radius = 18.0
+sight_range = 14.0
+sight_angle = 270.0
+hearing_range = 9.0
+safe_distance = 22.0
+body_radius = 0.22
+body_height = 0.5
+spawn_weight = 6.0
+max_alive = 8
+group_min = 1
+group_max = 2
+group_spread = 5.0
+min_player_distance = 30.0
+min_flatness = 0.85
+trees_min = 8
+animations = {
+"idle": "Idle",
+"look": "lookaround",
+"run": "run",
+"sleep": "sleep"
+}
+loot = Array[ExtResource("2_loot")]([SubResource("Loot_0"), SubResource("Loot_1")])

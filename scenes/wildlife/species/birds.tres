@@ -1,0 +1,54 @@
+[gd_resource type="Resource" script_class="Species" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scenes/wildlife/species.gd" id="1_species"]
+[ext_resource type="Script" path="res://scenes/wildlife/loot_entry.gd" id="2_loot"]
+[ext_resource type="PackedScene" path="res://assets/models/animals/bird_1.glb" id="m0"]
+[ext_resource type="PackedScene" path="res://assets/models/animals/bird_3.glb" id="m1"]
+[ext_resource type="PackedScene" path="res://assets/models/animals/bird_4.glb" id="m2"]
+[ext_resource type="PackedScene" path="res://assets/models/animals/bird_5.glb" id="m3"]
+
+[sub_resource type="Resource" id="Loot_0"]
+script = ExtResource("2_loot")
+item = "Small Feather"
+chance = 0.8
+min_count = 1
+max_count = 2
+
+[sub_resource type="Resource" id="Loot_1"]
+script = ExtResource("2_loot")
+item = "Bird Meat"
+chance = 0.4
+min_count = 1
+max_count = 1
+
+[resource]
+script = ExtResource("1_species")
+models = Array[PackedScene]([ExtResource("m0"), ExtResource("m1"), ExtResource("m2"), ExtResource("m3")])
+display_name = "Bird"
+model_scale = 1.6
+behavior = 2
+temperament = 1
+max_health = 6.0
+walk_speed = 2.0
+run_speed = 9.0
+turn_speed = 8.0
+sight_range = 16.0
+sight_angle = 300.0
+hearing_range = 10.0
+safe_distance = 30.0
+flee_distance = 14.0
+body_radius = 0.18
+body_height = 0.35
+spawn_weight = 8.0
+max_alive = 20
+group_min = 3
+group_max = 6
+group_spread = 14.0
+min_player_distance = 30.0
+trees_min = 4
+animations = {
+"fly": "fly",
+"idle": "idle",
+"land": "landing"
+}
+loot = Array[ExtResource("2_loot")]([SubResource("Loot_0"), SubResource("Loot_1")])

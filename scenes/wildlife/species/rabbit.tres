@@ -39,6 +39,14 @@ hearing_range = 10.0
 safe_distance = 24.0
 body_radius = 0.33
 body_height = 0.8
+spawn_weight = 10.0
+max_alive = 14
+group_min = 1
+group_max = 4
+group_spread = 6.0
+min_player_distance = 30.0
+min_flatness = 0.9
+trees_max = 6
 animations = {
 "eat": "Rabbit_eat",
 "idle": "Rabbit_idle",

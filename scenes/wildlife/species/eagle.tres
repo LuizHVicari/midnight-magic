@@ -44,6 +44,13 @@ attack_damage = 14.0
 attack_range = 2.6
 attack_cooldown = 7.0
 attack_push = 9.0
+behavior = 1
+spawn_weight = 1.0
+max_alive = 2
+group_min = 1
+group_max = 1
+min_player_distance = 90.0
+min_flatness = 0.0
 animations = {
 "dive": "fly",
 "flap": "flapping",

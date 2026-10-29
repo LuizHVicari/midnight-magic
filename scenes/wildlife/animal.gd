@@ -16,10 +16,14 @@ const CORPSE_TIME := 90.0  # a corpse waits this long to be looted
 const LOOT_PROMPT_RANGE := 6.0
 ## Animations that play once; everything else loops.
 const ONE_SHOT_ROLES := ["attack", "land", "leap", "eat_start", "eat_end"]
+## A species without an animation for a role uses this one instead (walking is a slow run...).
+const FALLBACKS := {"walk": "run", "look": "idle", "eat": "idle", "swim": "walk", "swim_idle": "idle", "swim_flee": "run"}
 
 static var _fur: StandardMaterial3D
 
 var species: Species
+## Which of the species' models to use; -1 picks one at random. A flock shares one.
+var variant := -1
 var health := Health.new()
 ## What the animal stays near. Defaults to where it was placed.
 var home := Vector3.ZERO
@@ -111,7 +115,8 @@ func _on_hurt() -> void:
 # --- model -------------------------------------------------------------------------------------
 
 func _build_model() -> void:
-	_model = species.random_model(_rng).instantiate()
+	var scene := species.models[variant] if variant >= 0 else species.random_model(_rng)
+	_model = scene.instantiate()
 	_model.scale = Vector3.ONE * species.model_scale
 	add_child(_model)
 	for mesh: MeshInstance3D in _model.find_children("*", "MeshInstance3D", true, false):
@@ -138,9 +143,14 @@ func _map_animations() -> void:
 
 ## Plays the animation for [param role] (idle, walk, run...) if the species has one.
 func play(role: String, speed := 1.0) -> void:
-	if not _animations.has(role):
+	var used := role
+	while not _animations.has(used) and FALLBACKS.has(used):
+		used = FALLBACKS[used]
+	if not _animations.has(used):
 		return
-	var full: String = _animations[role]
+	if used != role and role == "walk":
+		speed *= 0.55  # no walk cycle: a slowed run reads as one
+	var full: String = _animations[used]
 	if _animation_player.current_animation == full:
 		_animation_player.speed_scale = speed
 		return
@@ -278,6 +288,9 @@ func _die() -> void:
 	_plate.queue_free()
 	var ground := Combat.raycast(self, global_position, global_position + Vector3.DOWN * 80.0, [get_rid()])
 	var landing: float = global_position.y if ground.is_empty() else float(ground["position"].y)
+	var terrain := get_terrain()
+	if species.swims and terrain != null and terrain.is_water(global_position.x, global_position.z):
+		landing = maxf(landing, terrain.water_level_at(global_position.x, global_position.z) - species.float_depth)
 	_roll_loot()
 	_corpse = create_tween()
 	_corpse.tween_property(self, "global_position:y", landing, 0.5).set_ease(Tween.EASE_IN)
