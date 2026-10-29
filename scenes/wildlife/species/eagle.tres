@@ -1,0 +1,55 @@
+[gd_resource type="Resource" script_class="Species" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scenes/wildlife/species.gd" id="1_species"]
+[ext_resource type="Script" path="res://scenes/wildlife/loot_entry.gd" id="2_loot"]
+[ext_resource type="PackedScene" path="res://assets/models/animals/eagle.glb" id="3_eagle"]
+[ext_resource type="PackedScene" path="res://assets/models/animals/harpia.glb" id="4_harpia"]
+
+[sub_resource type="Resource" id="Loot_feather"]
+script = ExtResource("2_loot")
+item = "Eagle Feather"
+chance = 0.95
+min_count = 1
+max_count = 3
+
+[sub_resource type="Resource" id="Loot_talon"]
+script = ExtResource("2_loot")
+item = "Eagle Talon"
+chance = 0.45
+
+[sub_resource type="Resource" id="Loot_meat"]
+script = ExtResource("2_loot")
+item = "Raw Bird Meat"
+chance = 0.6
+
+[resource]
+script = ExtResource("1_species")
+display_name = "Eagle"
+models = Array[PackedScene]([ExtResource("3_eagle"), ExtResource("4_harpia")])
+model_scale = 0.6
+temperament = 2
+max_health = 60.0
+walk_speed = 9.0
+run_speed = 22.0
+turn_speed = 4.0
+home_radius = 38.0
+cruise_height = 26.0
+sight_range = 60.0
+sight_angle = 320.0
+hearing_range = 25.0
+safe_distance = 40.0
+body_radius = 0.6
+body_height = 0.9
+attack_damage = 14.0
+attack_range = 2.6
+attack_cooldown = 7.0
+attack_push = 9.0
+animations = {
+"dive": "fly",
+"flap": "flapping",
+"idle": "idle",
+"look": "lookaround",
+"sleep": "sleep",
+"soar": "gliding"
+}
+loot = Array[ExtResource("2_loot")]([SubResource("Loot_feather"), SubResource("Loot_talon"), SubResource("Loot_meat")])

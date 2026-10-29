@@ -30,6 +30,7 @@ var keep_clear := PackedByteArray()
 
 
 func _init() -> void:
+	add_to_group("terrain")
 	var count := N * N
 	heights.resize(count)
 	dirt.resize(count)

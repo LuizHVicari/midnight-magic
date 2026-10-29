@@ -23,6 +23,8 @@ const STUN_BONUS := 0.25  # extra damage from other elements while stunned
 @export var maximum := 100.0
 ## Height above the owner's origin that homing attacks aim at.
 @export var focus_height := 1.2
+## Whether spells may pick this as a target. The hero's own health is not.
+@export var targetable := true
 
 var value := 0.0
 var _burn_dps := 0.0
@@ -47,7 +49,8 @@ static func of(node: Node) -> Health:
 
 func _ready() -> void:
 	value = maximum
-	add_to_group("damageable")
+	if targetable:
+		add_to_group("damageable")
 
 
 func _process(delta: float) -> void:
@@ -110,6 +113,14 @@ func _tick_slow(delta: float) -> void:
 ## Share of normal speed the owner moves at, for whatever drives its movement to multiply by.
 func speed_factor() -> float:
 	return _slow_factor
+
+
+## Restores up to [param amount] hit points.
+func heal(amount: float) -> void:
+	if not is_alive() or value >= maximum:
+		return
+	value = minf(value + amount, maximum)
+	changed.emit(value, maximum)
 
 
 func is_alive() -> bool:

@@ -45,7 +45,7 @@ func _layout() -> Array[Feature]:
 	var big_lake := Lake.create(Vector2(300, 150), 75.0, 2.6)
 	var tarn := Lake.create(Vector2(-265, -170), 42.0, 2.0)
 
-	var features: Array[Feature] = [town, big_lake, tarn, Vegetation.new()]
+	var features: Array[Feature] = [town, big_lake, tarn, Vegetation.new(), WildlifeSpawner.new()]
 
 	# Water: a river across the road to the big lake, a creek down to the tarn.
 	features.append(River.create(_pts([
@@ -108,6 +108,7 @@ func _spawn_player(terrain: Terrain) -> void:
 	if player == null:
 		return
 	player.global_position = Vector3(SPAWN.x, terrain.height_at(SPAWN.x, SPAWN.y) + 1.0, SPAWN.y)
+	(player as Player).respawn_point = player.global_position
 
 
 ## Targets just ahead of the spawn point, to try spells on until there are real enemies.

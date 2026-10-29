@@ -13,6 +13,9 @@ extends CharacterBody3D
 @export var idle_regen: float = 20.0  # per second while standing still
 @export var regen_delay: float = 0.7  # pause after sprinting before stamina comes back
 @export var exhausted_recover: float = 0.3  # fraction needed to sprint again after running dry
+@export var max_health: float = 100.0
+@export var health_regen: float = 1.5  # per second, once out of danger
+@export var regen_after: float = 6.0
 @export var max_mana: float = 100.0
 @export var mana_regen: float = 8.0  # per second
 @export var mana_regen_delay: float = 1.0  # pause after casting before mana comes back
@@ -45,11 +48,15 @@ const ANIM_AIR := "Rig_Medium_MovementBasic/Jump_Idle"
 
 signal stamina_changed(value: float, maximum: float, exhausted: bool)
 signal mana_changed(value: float, maximum: float)
+signal item_collected(item: String, count: int)
 
 const WAND_SCENE := preload("res://assets/models/kaykit/wand.gltf")
 const HAND_BONE := "handslot.r"
 
 const STEP_PROBE_DISTANCE := 0.5
+const LOOT_COLOR := Color(1.0, 0.82, 0.35)
+## How close the hero has to be to a corpse to loot it.
+const INTERACT_RANGE := 3.0
 const SHIELD_DISTANCE := 1.6
 const SHIELD_HEIGHT := 1.2
 ## Two forward taps within this many seconds start a sprint that lasts until forward is released.
@@ -75,6 +82,11 @@ var sprinting := false
 var stamina := 0.0
 var exhausted := false
 var mana := 0.0
+var health := Health.new()
+## Where the hero returns after dying; the world sets it.
+var respawn_point := Vector3.ZERO
+var inventory := {}  # item name -> count
+var _since_hurt := 0.0
 var _regen_timer := 0.0
 var _mana_timer := 0.0
 var _cast_anim := ""
@@ -94,6 +106,8 @@ var _pivot_rest_y: float
 
 func _ready() -> void:
 	collision_mask |= Combat.STONE  # stone cover is solid to the hero
+	add_to_group("player")
+	_build_health()
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	target_zoom = spring_arm.spring_length
 	spring_arm.position.x = shoulder_offset
@@ -114,6 +128,52 @@ func _ready() -> void:
 	anim.animation_finished.connect(_on_animation_finished)
 	_equip_wand()
 	add_child(_shield)
+
+
+func _build_health() -> void:
+	health.name = "Health"
+	health.maximum = max_health
+	health.targetable = false  # spells never lock on to the hero
+	add_child(health)
+	health.changed.connect($Hud.add_bar(StatBar.Kind.HEALTH).set_value)
+	health.changed.emit(health.value, health.maximum)
+	health.damaged.connect(func(_amount: float, _element: Element) -> void: _since_hurt = 0.0)
+	health.pushed.connect(func(shove: Vector3) -> void: velocity += shove)
+	health.died.connect(_on_died)
+
+
+func _on_died() -> void:
+	await get_tree().create_timer(1.5).timeout
+	global_position = respawn_point
+	velocity = Vector3.ZERO
+	health.restore()
+	mana = max_mana
+	stamina = max_stamina
+	mana_changed.emit(mana, max_mana)
+	stamina_changed.emit(stamina, max_stamina, exhausted)
+
+
+## Picks something up: it goes into [member inventory] and a gold "+1 Item" floats up.
+func collect(item: String, count: int) -> void:
+	inventory[item] = int(inventory.get(item, 0)) + count
+	item_collected.emit(item, count)
+	DamagePopup.spawn(get_parent(), global_position + Vector3.UP * 2.8, "+%d %s" % [count, item], LOOT_COLOR)
+
+
+## How loud the hero is right now, for animals to hear: sneaking is quiet, sprinting and casting loud.
+func noise_level() -> float:
+	var moving := Vector2(velocity.x, velocity.z).length() > 0.5
+	var level := 0.15
+	if moving:
+		level = 2.0 if sprinting else (0.35 if crouching else 1.0)
+	return level + (1.5 if attacking else 0.0)
+
+
+## How easy the hero is to spot: crouching hides, running stands out.
+func visibility_factor() -> float:
+	if crouching:
+		return 0.55
+	return 1.2 if sprinting else 1.0
 
 
 func _equip_wand() -> void:
@@ -146,6 +206,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	_forward_cast_button(event, "attack", _primary_attack)
 	_forward_cast_button(event, "cast_secondary", _secondary_attack)
+	if event.is_action_pressed("interact") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		_interact()
 
 	if event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
@@ -166,6 +228,20 @@ func _equip_spell(element: Element) -> SpellAttack:
 	spell.caster = self
 	add_child(spell)
 	return spell
+
+
+## Loots the nearest corpse in reach, if there is one.
+func _interact() -> void:
+	var nearest: Animal = null
+	var nearest_distance := INTERACT_RANGE
+	for animal: Animal in get_tree().get_nodes_in_group("lootable"):
+		var distance := global_position.distance_to(animal.global_position)
+		if distance >= nearest_distance:
+			continue
+		nearest = animal
+		nearest_distance = distance
+	if nearest != null:
+		nearest.interact(self)
 
 
 func _register_forward_tap() -> void:
@@ -226,6 +302,7 @@ func _physics_process(delta: float) -> void:
 
 	_update_stamina(delta, direction != Vector3.ZERO)
 	_update_mana(delta)
+	_regen_health(delta)
 	_tick_cast(delta)
 
 	if blocking or attacking:
@@ -322,6 +399,12 @@ func _step_up(delta: float) -> void:
 	var rise := max_step_height - landing.get_travel().length()
 	if rise > 0.01:
 		global_position.y += rise
+
+
+func _regen_health(delta: float) -> void:
+	_since_hurt += delta
+	if _since_hurt > regen_after:
+		health.heal(health_regen * delta)
 
 
 ## Spends mana if there is enough. Mana only comes back a moment after the last cast.

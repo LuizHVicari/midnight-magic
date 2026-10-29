@@ -1,0 +1,50 @@
+[gd_resource type="Resource" script_class="Species" load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scenes/wildlife/species.gd" id="1_species"]
+[ext_resource type="Script" path="res://scenes/wildlife/loot_entry.gd" id="2_loot"]
+[ext_resource type="PackedScene" path="res://assets/models/animals/rabbit_a.glb" id="3_a"]
+[ext_resource type="PackedScene" path="res://assets/models/animals/rabbit_b.glb" id="4_b"]
+
+[sub_resource type="Resource" id="Loot_meat"]
+script = ExtResource("2_loot")
+item = "Rabbit Meat"
+chance = 0.9
+min_count = 1
+max_count = 2
+
+[sub_resource type="Resource" id="Loot_pelt"]
+script = ExtResource("2_loot")
+item = "Rabbit Pelt"
+chance = 0.5
+
+[sub_resource type="Resource" id="Loot_foot"]
+script = ExtResource("2_loot")
+item = "Lucky Rabbit Foot"
+chance = 0.08
+
+[resource]
+script = ExtResource("1_species")
+display_name = "Rabbit"
+models = Array[PackedScene]([ExtResource("3_a"), ExtResource("4_b")])
+model_scale = 1.0
+temperament = 1
+max_health = 12.0
+walk_speed = 1.5
+run_speed = 7.5
+turn_speed = 10.0
+home_radius = 22.0
+sight_range = 16.0
+sight_angle = 280.0
+hearing_range = 10.0
+safe_distance = 24.0
+body_radius = 0.33
+body_height = 0.8
+animations = {
+"eat": "Rabbit_eat",
+"idle": "Rabbit_idle",
+"look": "Rabbit_lookaround",
+"run": "Rabbit_run",
+"sleep": "Rabbit_sleep",
+"walk": "Rabbit_walk"
+}
+loot = Array[ExtResource("2_loot")]([SubResource("Loot_meat"), SubResource("Loot_pelt"), SubResource("Loot_foot")])
