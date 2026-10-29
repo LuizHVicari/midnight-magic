@@ -141,6 +141,7 @@ func _model_parts(pack: String, model: String) -> Dictionary:
 	if _parts.has(key):
 		return _parts[key]
 	var root: Node3D = load(Kit.MODEL_PATH % [pack, model]).instantiate()
+	Palette.recolor_node(root)
 	var parts := []
 	var aabb := AABB()
 	var first := true

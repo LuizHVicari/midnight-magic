@@ -40,6 +40,7 @@ static func place(
 	scale_mult := 1.0,
 ) -> Node3D:
 	var inst: Node3D = load(MODEL_PATH % [pack, model]).instantiate()
+	Palette.recolor_node(inst)
 	inst.position = pos
 	inst.rotation_degrees.y = yaw_deg
 	inst.scale = Vector3.ONE * PACK_SCALE[pack] * scale_mult

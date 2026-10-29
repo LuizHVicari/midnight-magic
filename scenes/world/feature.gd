@@ -45,7 +45,10 @@ func place(
 		# Rest on the lowest ground under the footprint, a bit sunk, so slopes never leave a gap.
 		y = terrain.lowest_around(at.x, at.y, 0.25 * Kit.PACK_SCALE[pack] * scale_mult) - 0.15
 	var pos := Vector3(at.x, y + lift, at.y)
-	return place_at(pack, model, pos, yaw_deg, collision, scale_mult)
+	var piece := place_at(pack, model, pos, yaw_deg, collision, scale_mult)
+	if model == "lantern":
+		add_night_light(pos + Vector3.UP * 6.8, Color(1.0, 0.78, 0.45), 2.6, 13.0)
+	return piece
 
 
 ## Same as [place] with an explicit world position.
@@ -58,6 +61,13 @@ func place_at(
 	scale_mult := 1.0,
 ) -> Node3D:
 	return Kit.place(self, pack, model, to_local(world_pos), yaw_deg, collision, scale_mult)
+
+
+## A lamp that lights up at night (see [NightLight]) at a world position.
+func add_night_light(world_pos: Vector3, color: Color, energy: float, reach: float, flickers := false) -> void:
+	var light := NightLight.make(color, energy, reach, flickers)
+	add_child(light)
+	light.position = to_local(world_pos)
 
 
 ## Solid invisible box at a world position (collision for scaled or merged visuals).

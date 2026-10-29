@@ -3,7 +3,7 @@ extends Animal
 ## A bird that lives in the trees: owls and small birds. It sits on a perch in a tree crown, and
 ## when the hero comes close (nearer when the hero is quiet) or something hurts it, it flies to
 ## another tree far from the danger and lands there. Birds of a flock raise the alarm together.
-## Owls sleep until you are near. Set [member perch] before adding it to the tree.
+## Owls sleep through the day, until you are near, and are awake at night. Set [member perch] before adding it to the tree.
 ## [codeblock]
 ## PERCHED --(hero near / hurt / flock alarm)--> FLYING --(arrived)--> LANDING --> PERCHED
 ## PERCHED --(now and then, birds only)--> FLYING to a nearby tree
@@ -79,7 +79,7 @@ func _perched(delta: float) -> void:
 		_flee()
 		return
 	_hop_left -= delta
-	if _hop_left <= 0.0 and not has_animation("sleep"):
+	if _hop_left <= 0.0 and not has_animation("sleep") and not is_resting_hours():
 		_hop_left = _rng.randf_range(HOP_EVERY.x, HOP_EVERY.y)
 		_take_off(Perches.pick_near(global_position, 25.0, _rng))
 		return
@@ -89,7 +89,7 @@ func _perched(delta: float) -> void:
 ## Sitting: owls sleep until the hero is near, birds look around now and then.
 func _rest(delta: float) -> void:
 	_state_left -= delta
-	if has_animation("sleep") and _alerted <= 0.0:
+	if has_animation("sleep") and _alerted <= 0.0 and is_resting_hours():
 		play("sleep")
 	elif _state_left > 0.0:
 		return

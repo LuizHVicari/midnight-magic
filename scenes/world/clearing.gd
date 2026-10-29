@@ -105,6 +105,7 @@ func _meadow(scatter: Scatter) -> void:
 func _camp() -> void:
 	var fire := center()
 	place("survival", "campfire-pit", fire, 0.0, Kit.Collision.MESH)
+	add_night_light(Vector3(fire.x, terrain.height_at(fire.x, fire.y) + 1.4, fire.y), Color(1.0, 0.58, 0.25), 4.5, 22.0, true)
 	place("nature", "log", fire + Vector2(5.0, 1.8), 80.0, Kit.Collision.MESH)
 	place("nature", "log", fire + Vector2(-5.0, -1.5), 100.0, Kit.Collision.MESH)
 	place("nature", "log", fire + Vector2(0.5, 5.5), 10.0, Kit.Collision.MESH)

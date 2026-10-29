@@ -161,3 +161,17 @@ static func shrink_curve() -> CurveTexture:
 	var texture := CurveTexture.new()
 	texture.curve = curve
 	return texture
+
+
+## Brief flash of light where something hits: it jumps to [param energy] and dies out in [param time].
+static func flash(parent: Node, at: Vector3, color: Color, energy: float, reach: float, time := 0.25) -> void:
+	var light := OmniLight3D.new()
+	light.light_color = color
+	light.light_energy = energy
+	light.omni_range = reach
+	light.omni_attenuation = 1.2
+	parent.add_child(light)
+	light.global_position = at
+	var tween := light.create_tween()
+	tween.tween_property(light, "light_energy", 0.0, time).set_ease(Tween.EASE_OUT)
+	tween.tween_callback(light.queue_free)

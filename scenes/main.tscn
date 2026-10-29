@@ -2,26 +2,23 @@
 
 [ext_resource type="PackedScene" uid="uid://cbf3ie3f58i1o" path="res://scenes/player.tscn" id="1_o5qli"]
 [ext_resource type="Script" path="res://scenes/world.gd" id="2_world"]
-[ext_resource type="Texture2D" path="res://assets/skyboxes/skybox-day.png" id="3_sky"]
-
-[sub_resource type="PanoramaSkyMaterial" id="PanoramaSkyMaterial_day"]
-panorama = ExtResource("3_sky")
-
-[sub_resource type="Sky" id="Sky_sugp2"]
-sky_material = SubResource("PanoramaSkyMaterial_day")
+[ext_resource type="Script" path="res://scenes/world/day_night.gd" id="3_daynight"]
 
 [sub_resource type="Environment" id="Environment_jyhfs"]
 background_mode = 2
-sky = SubResource("Sky_sugp2")
-ambient_light_source = 3
-ambient_light_color = Color(0.85, 0.9, 1, 1)
-ambient_light_energy = 0.35
 tonemap_mode = 2
+tonemap_white = 5.0
+ssao_enabled = true
+ssao_radius = 1.6
+ssao_intensity = 1.6
+ssao_power = 1.6
 glow_enabled = true
+glow_intensity = 0.7
+glow_bloom = 0.04
 fog_enabled = true
-fog_light_color = Color(0.74, 0.85, 0.96, 1)
-fog_density = 0.0022
-fog_sky_affect = 0.15
+adjustment_enabled = true
+adjustment_contrast = 1.04
+adjustment_saturation = 1.0
 
 [node name="Main" type="Node3D" unique_id=384096090]
 
@@ -29,12 +26,15 @@ fog_sky_affect = 0.15
 environment = SubResource("Environment_jyhfs")
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=92297307]
-# Rotation lines the light up with the sun painted in skybox-day.png (50 deg elevation).
+# DayNight moves and colors this light: it is the sun.
 rotation = Vector3(-0.877097, -2.613833, 0)
 light_color = Color(1, 0.96, 0.88, 1)
-light_energy = 1.15
+light_energy = 1.0
 shadow_enabled = true
 directional_shadow_max_distance = 140.0
+
+[node name="DayNight" type="Node" parent="."]
+script = ExtResource("3_daynight")
 
 [node name="World" type="Node3D" parent="." unique_id=1572092949]
 script = ExtResource("2_world")

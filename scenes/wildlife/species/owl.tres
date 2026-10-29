@@ -43,6 +43,7 @@ group_min = 1
 group_max = 1
 min_player_distance = 30.0
 trees_min = 12
+activity = 1
 animations = {
 "fly": "fly",
 "idle": "idle",

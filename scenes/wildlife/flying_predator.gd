@@ -72,7 +72,8 @@ func _soar(delta: float) -> void:
 	var spot := home + Vector3(cos(lead), 0.0, sin(lead)) * species.home_radius
 	spot.y = _cruise_altitude(spot)
 	_fly_toward(spot, species.walk_speed, delta)
-	if _cooldown <= 0.0 and (sees_player or hears_player) and species.temperament == Species.Temperament.AGGRESSIVE:
+	var hunting := species.temperament == Species.Temperament.AGGRESSIVE and not is_resting_hours()
+	if _cooldown <= 0.0 and (sees_player or hears_player) and hunting:
 		_enter(State.DIVE)
 
 

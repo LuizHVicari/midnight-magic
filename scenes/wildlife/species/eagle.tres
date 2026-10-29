@@ -51,6 +51,7 @@ group_min = 1
 group_max = 1
 min_player_distance = 90.0
 min_flatness = 0.0
+activity = 0
 animations = {
 "dive": "fly",
 "flap": "flapping",

@@ -33,15 +33,20 @@ func _ready() -> void:
 		emitter.position.z = 0.3
 		emitter.emitting = true
 
-	_light.light_color = Color(1.0, 0.55, 0.25)
-	_light.omni_range = 8.0
+	# Warm and flickering: it lights a shorter radius than light's, and the color drifts a little
+	# towards red now and then, like the flames do.
+	_light.light_color = Color(1.0, 0.5, 0.2)
+	_light.omni_range = 13.0
+	_light.omni_attenuation = 1.1
 	add_child(_light)
 	look_at(global_position + direction)
 
 
 func _process(delta: float) -> void:
 	_body.rotate_z(SPIN * delta)
-	_light.light_energy = 3.0 + sin(_age * 35.0) * 0.6
+	var wobble := sin(_age * 31.0) * 0.5 + sin(_age * 17.0 + 1.3) * 0.5
+	_light.light_energy = 4.2 + wobble * 1.3
+	_light.light_color = Color(1.0, 0.5, 0.2).lerp(Color(1.0, 0.32, 0.3), maxf(wobble, 0.0) * 0.6)
 
 
 func _physics_process(delta: float) -> void:
@@ -69,6 +74,7 @@ func _explode(at: Vector3) -> void:
 	var struck := Combat.blast(self, at, IMPACT_RADIUS, IMPACT_DAMAGE, element, [caster.get_rid()])
 	for health in struck:
 		health.ignite(BURN_DPS, BURN_TIME, element)
+	Vfx.flash(get_parent(), at + Vector3.UP * 0.6, Color(1.0, 0.5, 0.2), 7.0, 15.0, 0.35)
 	var ground := FireGround.new()
 	ground.element = element
 	ground.caster = caster

@@ -86,16 +86,33 @@ func _living() -> Array[Animal]:
 func _pick_species(living: Array[Animal]) -> Species:
 	var open: Array[Species] = []
 	var total := 0.0
+	var night := _night()
 	for species: Species in SPECIES:
 		if _count(species, living) < species.max_alive:
 			open.append(species)
-			total += species.spawn_weight
+			total += _weight(species, night)
 	var roll := _rng.randf() * total
 	for species in open:
-		roll -= species.spawn_weight
+		roll -= _weight(species, night)
 		if roll <= 0.0:
 			return species
 	return null
+
+
+## How dark it is, 0 to 1; 0 when there is no clock.
+func _night() -> float:
+	var clock := get_tree().get_first_node_in_group("day_night") as DayNight
+	return clock.night if clock != null else 0.0
+
+
+## Spawn weight with the time of day: day animals thin out at night, night animals come out.
+func _weight(species: Species, night: float) -> float:
+	match species.activity:
+		Species.Activity.DAY:
+			return species.spawn_weight * lerpf(1.0, 0.08, night)
+		Species.Activity.NIGHT:
+			return species.spawn_weight * lerpf(0.25, 1.0, night)
+	return species.spawn_weight
 
 
 func _count(species: Species, living: Array[Animal]) -> int:

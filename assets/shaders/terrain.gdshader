@@ -4,9 +4,9 @@ shader_type spatial;
 // vertex color paints dirt paths (r), cobblestones (g) and wet shore mud (b), and steep
 // slopes turn into bare rock.
 
-uniform vec3 base_color : source_color = vec3(0.4523, 0.9295, 0.8659);
-uniform vec3 patch_color : source_color = vec3(0.36, 0.86, 0.72);
-uniform vec3 tuft_color : source_color = vec3(0.26, 0.7, 0.66);
+uniform vec3 base_color : source_color = vec3(0.43, 0.7, 0.28);
+uniform vec3 patch_color : source_color = vec3(0.38, 0.66, 0.27);
+uniform vec3 tuft_color : source_color = vec3(0.3, 0.55, 0.23);
 uniform vec3 rock_color : source_color = vec3(0.55, 0.52, 0.5);
 uniform vec3 dirt_color : source_color = vec3(0.6, 0.45, 0.3);
 uniform vec3 cobble_color : source_color = vec3(0.62, 0.6, 0.58);

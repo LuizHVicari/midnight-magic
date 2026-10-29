@@ -234,6 +234,23 @@ func get_terrain() -> Terrain:
 	return _terrain
 
 
+## Whether it is night right now; false when the scene has no day and night clock.
+func is_night() -> bool:
+	var clock := get_tree().get_first_node_in_group("day_night") as DayNight
+	return clock != null and clock.night > 0.5
+
+
+## Whether this is the hours the species sleeps or lies low: nights for day animals, days for
+## night animals (owls).
+func is_resting_hours() -> bool:
+	match species.activity:
+		Species.Activity.DAY:
+			return is_night()
+		Species.Activity.NIGHT:
+			return not is_night()
+	return false
+
+
 func eye() -> Vector3:
 	return global_position + Vector3.UP * species.body_height * 0.8
 

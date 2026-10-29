@@ -19,6 +19,7 @@ var caster: Player
 
 var _visual := Node3D.new()
 var _wait := 0.0
+var _light: OmniLight3D
 var _age := 0.0
 
 
@@ -34,16 +35,23 @@ func _ready() -> void:
 
 	var light := OmniLight3D.new()
 	light.light_color = Color(1.0, 0.5, 0.2)
-	light.light_energy = 2.5
+	light.light_energy = 3.5
 	light.omni_range = RADIUS * 2.5
 	light.position.y = 1.0
 	_visual.add_child(light)
+	_light = light
 
 	var tween := create_tween()
 	tween.tween_property(_visual, "scale", Vector3.ONE, GROW_TIME).set_ease(Tween.EASE_OUT)
 	tween.tween_interval(DURATION - GROW_TIME - DIE_TIME)
 	tween.tween_property(_visual, "scale", Vector3(0.9, 0.0, 0.9), DIE_TIME).set_ease(Tween.EASE_IN)
 	tween.tween_callback(queue_free)
+
+
+func _process(_delta: float) -> void:
+	# The flames never burn steadily.
+	var wobble := sin(_age * 13.0) * 0.5 + sin(_age * 29.0 + 2.0) * 0.5
+	_light.light_energy = (3.5 + wobble * 1.0) * _visual.scale.y
 
 
 func _physics_process(delta: float) -> void:

@@ -15,6 +15,12 @@ const HOMING_CONE := 22.0
 const MAX_RANGE := 100.0  # far beyond fire's reach
 const LIFETIME := MAX_RANGE / SPEED
 const CONJURE_TIME := 0.2
+## The lance lights up its surroundings: gold-white, steady and wide. A volley adds up, so a big
+## one lights a whole clearing.
+const GLOW_COLOR := Color(1.0, 0.9, 0.6)
+const GLOW_RANGE := 9.0
+const GLOW_HOVER := 0.07
+const GLOW_FLYING := 0.3
 const SHAKE_EVERY := 0.03  # the body jumps to a new tremble this often, for a jittery look
 
 var element: Element
@@ -29,6 +35,7 @@ var _age := 0.0
 var _bob := randf() * TAU
 var _shake_wait := 0.0
 var _body := Node3D.new()  # the beams; stretched while flying, shaken all the time
+var _glow := OmniLight3D.new()
 var _materials: Array[ShaderMaterial] = []
 
 
@@ -43,12 +50,24 @@ func _ready() -> void:
 	add_child(motes)
 	motes.emitting = true
 	Vfx.sparks(get_parent(), global_position, element.color, 6)
+
+	_glow.light_color = GLOW_COLOR
+	_glow.omni_range = GLOW_RANGE
+	_glow.omni_attenuation = 0.9
+	_glow.light_energy = 0.0
+	_glow.position.z = LENGTH * 0.4
+	add_child(_glow)
 	scale = Vector3.ZERO
 
 
 func _process(delta: float) -> void:
 	_age += delta
-	scale = Vector3.ONE * smoothstep(0.0, CONJURE_TIME, _age)
+	var conjure := smoothstep(0.0, CONJURE_TIME, _age)
+	scale = Vector3.ONE * conjure
+	# Scaling the node would shrink the light's range with it, so size and brightness follow the
+	# conjuring separately, and a lance in flight burns brighter.
+	_glow.omni_range = GLOW_RANGE / maxf(conjure, 0.05)
+	_glow.light_energy = (GLOW_FLYING if _flying else GLOW_HOVER) * conjure * randf_range(0.9, 1.0)
 	_shake_wait -= delta
 	if _shake_wait <= 0.0:
 		_shake_wait = SHAKE_EVERY
@@ -98,6 +117,7 @@ func _physics_process(delta: float) -> void:
 		return
 	Combat.hurt(hit["collider"], DAMAGE, element)
 	Vfx.sparks(get_parent(), hit["position"], element.color)
+	Vfx.flash(get_parent(), hit["position"] + Vector3.UP * 0.3, GLOW_COLOR, 3.0, 9.0, 0.2)
 	queue_free()
 
 
