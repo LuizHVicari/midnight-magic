@@ -1,3 +1,4 @@
+class_name Player
 extends CharacterBody3D
 
 @export var speed: float = 4.5
@@ -12,12 +13,18 @@ extends CharacterBody3D
 @export var idle_regen: float = 20.0  # per second while standing still
 @export var regen_delay: float = 0.7  # pause after sprinting before stamina comes back
 @export var exhausted_recover: float = 0.3  # fraction needed to sprint again after running dry
+@export var max_mana: float = 100.0
+@export var mana_regen: float = 8.0  # per second
+@export var mana_regen_delay: float = 1.0  # pause after casting before mana comes back
+@export var primary: Element = preload("res://scenes/combat/elements/light.tres")
+@export var secondary: Element = preload("res://scenes/combat/elements/fire.tres")
 @export var jump_velocity: float = 9.0
 @export var gravity_scale: float = 2.2
 @export var fall_multiplier: float = 1.3
 @export var mouse_sensitivity: float = 0.003
 @export var turn_speed: float = 10.0
 @export var max_step_height: float = 1.0
+@export var shoulder_offset: float = 1.4  # camera slides right, so the hero sits left of the crosshair
 @export var zoom_min: float = 1.5
 @export var zoom_max: float = 10.0
 @export var zoom_step: float = 0.5
@@ -29,11 +36,15 @@ const ANIM_RUN := "Rig_Medium_MovementBasic/Running_A"
 const ANIM_CROUCH := "Rig_Medium_MovementAdvanced/Crouching"
 const ANIM_SNEAK := "Rig_Medium_MovementAdvanced/Sneaking"
 const ANIM_BLOCK := "Rig_Medium_CombatMelee/Melee_Blocking"
+const ANIM_CHANNEL := "Rig_Medium_CombatRanged/Ranged_Magic_Raise"
+## Second into the raise where the wand is up and steady; a held cast freezes there.
+const CHANNEL_HOLD := 1.1
+const ANIM_THROW := "Rig_Medium_General/Throw"
 const LOOPED_ANIMS := [ANIM_WALK, ANIM_CROUCH, ANIM_SNEAK, ANIM_BLOCK]
 const ANIM_AIR := "Rig_Medium_MovementBasic/Jump_Idle"
-const ANIM_ATTACK := "Rig_Medium_General/Throw"
 
 signal stamina_changed(value: float, maximum: float, exhausted: bool)
+signal mana_changed(value: float, maximum: float)
 
 const WAND_SCENE := preload("res://assets/models/kaykit/wand.gltf")
 const HAND_BONE := "handslot.r"
@@ -49,6 +60,7 @@ const DOUBLE_TAP_WINDOW := 0.3
 @onready var model: Node3D = $Model
 @onready var anim: AnimationPlayer = $AnimationPlayer
 @onready var body_shape: CollisionShape3D = $CollisionShape3D
+@onready var camera: Camera3D = $CameraPivot/SpringArm3D/Camera3D
 
 var attacking := false
 var blocking := false:
@@ -62,7 +74,15 @@ var crouching := false
 var sprinting := false
 var stamina := 0.0
 var exhausted := false
+var mana := 0.0
 var _regen_timer := 0.0
+var _mana_timer := 0.0
+var _cast_anim := ""
+var _cast_lock := 0.0  # seconds the cast still roots the hero; 0 = until its animation ends
+var _hold_at := 0.0  # animation position where the cast pose freezes; 0 = never
+var _hand: Node3D
+var _primary_attack: SpellAttack
+var _secondary_attack: SpellAttack
 var _last_forward_tap := -1000.0
 var _double_tap_sprint := false
 var target_zoom: float
@@ -75,12 +95,18 @@ var _pivot_rest_y: float
 func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	target_zoom = spring_arm.spring_length
+	spring_arm.position.x = shoulder_offset
 	_stand_height = (body_shape.shape as CapsuleShape3D).height
 	_stand_center_y = body_shape.position.y
 	_pivot_rest_y = camera_pivot.position.y
 	stamina = max_stamina
 	stamina_changed.connect($Hud.add_bar(StatBar.Kind.STAMINA, true).set_value)
 	stamina_changed.emit(stamina, max_stamina, exhausted)
+	mana = max_mana
+	mana_changed.connect($Hud.add_bar(StatBar.Kind.MANA).set_value)
+	mana_changed.emit(mana, max_mana)
+	_primary_attack = _equip_spell(primary)
+	_secondary_attack = _equip_spell(secondary)
 	for anim_name in LOOPED_ANIMS:
 		anim.get_animation(anim_name).loop_mode = Animation.LOOP_LINEAR
 	floor_snap_length = 0.4  # stick to the ground when walking down banks and steps
@@ -97,6 +123,7 @@ func _equip_wand() -> void:
 	skeleton.add_child(hand)
 	hand.add_child(WAND_SCENE.instantiate())
 	_shield.wand = hand
+	_hand = hand
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -116,13 +143,28 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_released("move_forward"):
 		_double_tap_sprint = false
 
-	if event.is_action_pressed("attack") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		_attack()
+	_forward_cast_button(event, "attack", _primary_attack)
+	_forward_cast_button(event, "cast_secondary", _secondary_attack)
 
 	if event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event is InputEventMouseButton and event.pressed:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+## Presses only count while the mouse is captured; releases always do, so a held spell never sticks.
+func _forward_cast_button(event: InputEvent, action: String, spell: SpellAttack) -> void:
+	if event.is_action_released(action):
+		spell.release()
+	if event.is_action_pressed(action) and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		spell.begin()
+
+
+func _equip_spell(element: Element) -> SpellAttack:
+	var spell := element.create_attack()
+	spell.caster = self
+	add_child(spell)
+	return spell
 
 
 func _register_forward_tap() -> void:
@@ -182,9 +224,11 @@ func _physics_process(delta: float) -> void:
 		velocity.z = move_toward(velocity.z, 0.0, move_speed)
 
 	_update_stamina(delta, direction != Vector3.ZERO)
+	_update_mana(delta)
+	_tick_cast(delta)
 
-	if blocking:
-		# Keep the guard up towards where the camera looks, strafing instead of turning.
+	if blocking or attacking:
+		# Guard and spells go where the camera looks, so the hero turns to face it.
 		model.rotation.y = lerp_angle(model.rotation.y, camera_pivot.rotation.y + PI, turn_speed * delta)
 
 	_step_up(delta)
@@ -277,16 +321,84 @@ func _step_up(delta: float) -> void:
 		global_position.y += rise
 
 
-func _attack() -> void:
-	if attacking or blocking:
+## Spends mana if there is enough. Mana only comes back a moment after the last cast.
+func spend_mana(amount: float) -> bool:
+	if mana < amount:
+		return false
+	mana -= amount
+	_mana_timer = mana_regen_delay
+	mana_changed.emit(mana, max_mana)
+	return true
+
+
+func _update_mana(delta: float) -> void:
+	_mana_timer = maxf(_mana_timer - delta, 0.0)
+	if _mana_timer > 0.0 or mana >= max_mana:
 		return
+	mana = minf(mana + mana_regen * delta, max_mana)
+	mana_changed.emit(mana, max_mana)
+
+
+## Starts a cast animation and roots the hero on the ground while it lasts: [param lock] seconds,
+## 0 for the length of the animation, INF until [method release_cast] or [method end_cast].
+## With [param hold_at] the pose freezes at that point of the animation. Returns false while
+## another cast or the guard is busy.
+func begin_cast(animation: String, lock := 0.0, speed := 1.0, hold_at := 0.0) -> bool:
+	if attacking or blocking:
+		return false
 	attacking = true
 	_double_tap_sprint = false
-	anim.play(ANIM_ATTACK, 0.1)
+	_cast_anim = animation
+	_cast_lock = lock
+	_hold_at = hold_at
+	anim.play(animation, 0.1, speed)
+	return true
+
+
+## Ends a held cast with its release animation, rooting the hero for [param lock] more seconds.
+func release_cast(animation: String, lock: float, speed := 1.0) -> void:
+	_cast_anim = animation
+	_cast_lock = lock
+	_hold_at = 0.0
+	anim.play(animation, 0.08, speed)
+
+
+func end_cast() -> void:
+	attacking = false
+	_cast_lock = 0.0
+	_hold_at = 0.0
+
+
+func _tick_cast(delta: float) -> void:
+	_hold_pose()
+	if not attacking or _cast_lock <= 0.0:
+		return
+	_cast_lock -= delta
+	attacking = _cast_lock > 0.0
+
+
+func _hold_pose() -> void:
+	if _hold_at <= 0.0 or not anim.is_playing() or anim.current_animation_position < _hold_at:
+		return
+	anim.pause()
+	_hold_at = 0.0
+
+
+## Where the camera is looking: the first thing in the way, or far ahead if there is none.
+func aim_point(reach := 150.0) -> Vector3:
+	var origin := camera.global_position
+	var forward := -camera.global_basis.z
+	var hit := Combat.raycast(self, origin + forward, origin + forward * reach, [get_rid()])
+	return origin + forward * reach if hit.is_empty() else hit["position"]
+
+
+## Tip of the wand, where spells leave from.
+func cast_origin() -> Vector3:
+	return _hand.global_position
 
 
 func _on_animation_finished(anim_name: StringName) -> void:
-	if anim_name == ANIM_ATTACK:
+	if anim_name == _cast_anim and _cast_lock <= 0.0:
 		attacking = false
 
 

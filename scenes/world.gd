@@ -36,6 +36,7 @@ func _ready() -> void:
 
 	_build_boundaries()
 	_spawn_player(terrain)
+	_place_training_dummies(terrain)
 
 
 func _layout() -> Array[Feature]:
@@ -107,3 +108,12 @@ func _spawn_player(terrain: Terrain) -> void:
 	if player == null:
 		return
 	player.global_position = Vector3(SPAWN.x, terrain.height_at(SPAWN.x, SPAWN.y) + 1.0, SPAWN.y)
+
+
+## Targets just ahead of the spawn point, to try spells on until there are real enemies.
+func _place_training_dummies(terrain: Terrain) -> void:
+	for offset in [Vector2(3.0, -12.0), Vector2(-4.0, -17.0), Vector2(2.0, -23.0)]:
+		var at: Vector2 = SPAWN + offset
+		var dummy := TrainingDummy.new()
+		add_child(dummy)
+		dummy.global_position = Vector3(at.x, terrain.height_at(at.x, at.y), at.y)

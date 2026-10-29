@@ -6,6 +6,7 @@
 [ext_resource type="AnimationLibrary" uid="uid://cap8d84qnqkte" path="res://assets/animations/Rig_Medium_MovementBasic.glb" id="4_tuyoq"]
 [ext_resource type="AnimationLibrary" uid="uid://b7s838syk4ei" path="res://assets/animations/Rig_Medium_MovementAdvanced.glb" id="5_advanced"]
 [ext_resource type="AnimationLibrary" uid="uid://tpjcxuviar8" path="res://assets/animations/Rig_Medium_CombatMelee.glb" id="6_melee"]
+[ext_resource type="AnimationLibrary" uid="uid://mn6cac6jmqf0" path="res://assets/animations/Rig_Medium_CombatRanged.glb" id="8_ranged"]
 [ext_resource type="Script" path="res://scenes/ui/stats_hud.gd" id="7_hud"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_g2els"]
@@ -40,3 +41,4 @@ libraries/Rig_Medium_General = ExtResource("3_qlg0r")
 libraries/Rig_Medium_MovementBasic = ExtResource("4_tuyoq")
 libraries/Rig_Medium_MovementAdvanced = ExtResource("5_advanced")
 libraries/Rig_Medium_CombatMelee = ExtResource("6_melee")
+libraries/Rig_Medium_CombatRanged = ExtResource("8_ranged")

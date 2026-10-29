@@ -1,7 +1,7 @@
 class_name StatsHud
 extends CanvasLayer
 ## Character HUD: a column of [StatBar]s in the top-left corner, always ordered health, mana,
-## stamina however they are added. Add a bar once its system exists:
+## stamina however they are added, and the [Crosshair] in the middle of the screen. Add a bar once its system exists:
 ## [codeblock]
 ## var bar := hud.add_bar(StatBar.Kind.HEALTH)
 ## health_changed.connect(bar.set_value)
@@ -18,6 +18,7 @@ func _ready() -> void:
 	_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_column.position = MARGIN
 	add_child(_column)
+	add_child(Crosshair.new())
 
 
 func add_bar(kind: StatBar.Kind, fade_when_full := false) -> StatBar:
