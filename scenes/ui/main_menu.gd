@@ -60,11 +60,10 @@ func _draw() -> void:
 
 
 func _build_menu() -> void:
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
+	var center := _full_screen_layout()
 	_menu.add_theme_constant_override("separation", 16)
 	_menu.custom_minimum_size = Vector2(340.0, 0.0)
+	_menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	center.add_child(_menu)
 
 	var title := Label.new()
@@ -93,9 +92,7 @@ func _build_menu() -> void:
 
 
 func _build_credits() -> void:
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
+	var center := _full_screen_layout()
 	_credits.visible = false
 	_credits.add_theme_stylebox_override("panel", _box(WOOD_DARK.darkened(0.2), WOOD, 14, 24))
 	center.add_child(_credits)
@@ -129,6 +126,16 @@ func _build_credits() -> void:
 	_style(back)
 	back.pressed.connect(func() -> void: _show_credits(false))
 	column.add_child(back)
+
+
+## A full-screen container that centers its child. It must ignore the mouse: two of them are
+## stacked, and a container that catches clicks would hide the buttons of the one underneath.
+func _full_screen_layout() -> CenterContainer:
+	var center := CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(center)
+	return center
 
 
 func _show_credits(on: bool) -> void:
