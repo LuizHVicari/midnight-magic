@@ -8,6 +8,8 @@ signal changed(value: float, maximum: float)
 signal damaged(amount: float, element: Element)
 signal burning_changed(burning: bool)
 signal cursed_changed(stacks: int)
+## Something shoved the owner; whoever moves it decides how far it really goes.
+signal pushed(velocity: Vector3)
 signal died
 
 const BURN_TICK := 0.5
@@ -92,6 +94,13 @@ func take_damage(amount: float, element: Element = null) -> void:
 	changed.emit(value, maximum)
 	if value <= 0.0:
 		died.emit()
+
+
+## Shoves the owner away at [param velocity] (m/s). Health does not move anything itself: the
+## body that owns it listens to [signal pushed] and reacts.
+func push(velocity: Vector3) -> void:
+	if is_alive():
+		pushed.emit(velocity)
 
 
 ## Sets the target on fire; a stronger or longer burn replaces a weaker one.

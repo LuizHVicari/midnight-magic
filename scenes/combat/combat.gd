@@ -57,3 +57,20 @@ static func find_target(node: Node, origin: Vector3, direction: Vector3, reach: 
 		best = candidate
 		best_angle = angle
 	return best
+
+
+## Living targets inside a cone, each with its distance, that are not hidden behind something.
+## The cone opens from [param origin] along [param direction] to [param reach] meters and
+## [param half_angle_deg] either side.
+static func in_cone(node: Node3D, origin: Vector3, direction: Vector3, reach: float, half_angle_deg: float, exclude: Array[RID] = []) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	for candidate: Health in node.get_tree().get_nodes_in_group("damageable"):
+		var point := candidate.focus_point()
+		var offset := point - origin
+		if not candidate.is_alive() or offset.length() > reach or direction.angle_to(offset) > deg_to_rad(half_angle_deg):
+			continue
+		var blocker := raycast(node, origin, point, exclude)
+		if not blocker.is_empty() and blocker["collider"] != candidate.get_parent():
+			continue
+		found.append({"health": candidate, "distance": offset.length(), "offset": offset})
+	return found

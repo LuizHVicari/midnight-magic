@@ -28,6 +28,7 @@ func _ready() -> void:
 	_health.died.connect(_on_died)
 	_health.burning_changed.connect(func(burning: bool) -> void: _flames.emitting = burning)
 	_health.cursed_changed.connect(_on_cursed)
+	_health.pushed.connect(_on_pushed)
 	_on_changed(max_health, max_health)
 
 
@@ -113,6 +114,17 @@ func _flash(color: Color) -> void:
 		tween.tween_property(material, "emission", Color.BLACK, 0.2)
 	_pivot.rotation.x = -0.1
 	tween.tween_property(_pivot, "rotation:x", 0.0, 0.25).set_trans(Tween.TRANS_ELASTIC)
+
+
+## Slides away along the shove and leans into it, then walks back to its post.
+func _on_pushed(velocity: Vector3) -> void:
+	var flat := Vector3(velocity.x, 0.0, velocity.z)
+	var slide := flat.limit_length(3.5) * 0.5
+	var tween := create_tween()
+	tween.tween_property(self, "global_position", global_position + slide, 0.15).set_ease(Tween.EASE_OUT)
+	tween.tween_interval(0.4)
+	tween.tween_property(self, "global_position", global_position, 0.6).set_ease(Tween.EASE_IN_OUT)
+	_pivot.rotation.x = -0.35
 
 
 func _on_died() -> void:
