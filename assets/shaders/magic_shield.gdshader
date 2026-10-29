@@ -1,7 +1,7 @@
 shader_type spatial;
 render_mode blend_add, unshaded, cull_disabled, depth_draw_never;
 // Purple spell circle: glowing outer rings, a slowly turning band of rune ticks, and a
-// counter-turning hexagram inside, over a faint translucent disc. [fade] opens and closes it.
+// counter-turning eight-point star inside, over a faint translucent disc. [fade] opens and closes it.
 
 uniform vec3 color : source_color = vec3(0.62, 0.22, 1.0);
 uniform vec3 core_color : source_color = vec3(0.95, 0.75, 1.0);
@@ -26,11 +26,12 @@ float segment(vec2 p, vec2 a, vec2 b, float width) {
 	return 1.0 - smoothstep(width * 0.4, width, length(pa - ba * h));
 }
 
+// Eight-point star: every vertex of an octagon joined to the one three places along.
 float polygon_star(vec2 p, float radius, float width) {
 	float m = 0.0;
-	for (int i = 0; i < 6; i++) {
-		float a0 = float(i) * TAU / 6.0;
-		float a1 = float((i + 2) % 6) * TAU / 6.0;
+	for (int i = 0; i < 8; i++) {
+		float a0 = float(i) * TAU / 8.0;
+		float a1 = float((i + 3) % 8) * TAU / 8.0;
 		m = max(m, segment(p, vec2(cos(a0), sin(a0)) * radius, vec2(cos(a1), sin(a1)) * radius, width));
 	}
 	return m;
@@ -68,7 +69,7 @@ void fragment() {
 	float tick_r = step(abs(r - 0.72), tick_len);
 	m += band * tick * tick_r * 0.9;
 
-	// Hexagram turning the other way.
+	// Eight-point star turning the other way.
 	vec2 q = rotate(p, -TIME * 0.5);
 	m += polygon_star(q, 0.54, 0.045) * 0.9;
 	m += ring(r, 0.26, 0.035) * 0.7;
