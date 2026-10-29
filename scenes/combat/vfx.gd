@@ -90,9 +90,25 @@ static func sparks(parent: Node, at: Vector3, color: Color, amount := 10) -> voi
 	emitter.emitting = true
 
 
+## Tiny low-poly diamond, flat colored by the particle's own color.
+static func diamond_mesh(radius := 0.03) -> SphereMesh:
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.vertex_color_use_as_albedo = true
+	var diamond := SphereMesh.new()
+	diamond.radius = radius
+	diamond.height = radius * 3.3
+	diamond.radial_segments = 4
+	diamond.rings = 2
+	diamond.material = material
+	return diamond
+
+
 ## Cloud of tiny flat-colored diamonds scattered along a line (the emitter's +Z, [param length]
-## long), drifting off and shrinking away. Left in world space, so they trail behind a mover.
-static func motes(color: Color, amount: int, lifetime: float, length: float, spread: float) -> GPUParticles3D:
+## long), drifting off and shrinking away: [param hot] when they appear, [param color] after.
+## Left in world space, so they trail behind a mover.
+static func motes(color: Color, amount: int, lifetime: float, length: float, spread: float, hot := Color.WHITE) -> GPUParticles3D:
 	var process := ParticleProcessMaterial.new()
 	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
 	process.emission_box_extents = Vector3(spread, spread, length * 0.5)
@@ -106,21 +122,34 @@ static func motes(color: Color, amount: int, lifetime: float, length: float, spr
 	process.scale_curve = shrink_curve()
 	process.angular_velocity_min = -240.0
 	process.angular_velocity_max = 240.0
-	process.color_ramp = ramp([Color(1, 1, 1, 1), color, Color(color, 0.0)])
-
-	var material := StandardMaterial3D.new()
-	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
-	material.vertex_color_use_as_albedo = true
-	var diamond := SphereMesh.new()
-	diamond.radius = 0.03
-	diamond.height = 0.1
-	diamond.radial_segments = 4
-	diamond.rings = 2
-	diamond.material = material
-	var emitter := particles(process, diamond, amount, lifetime)
+	process.color_ramp = ramp([hot, color, Color(color, 0.0)])
+	var emitter := particles(process, diamond_mesh(), amount, lifetime)
 	emitter.local_coords = false
 	return emitter
+
+
+## Ring of [param count] shader-driven tongues around the +Z axis, each leaning outward, with
+## their own length and girth. [param mesh] is a cone pointing up (+Y) whose material animates.
+static func crown(mesh: Mesh, count: int, seed_value := 7, lean_deg := Vector2(4.0, 30.0), length := Vector2(0.6, 1.4)) -> MultiMeshInstance3D:
+	var multi := MultiMesh.new()
+	multi.transform_format = MultiMesh.TRANSFORM_3D
+	multi.mesh = mesh
+	multi.instance_count = count
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	for i in count:
+		var around := TAU * (i + rng.randf_range(-0.2, 0.2)) / count
+		var lean := deg_to_rad(rng.randf_range(lean_deg.x, lean_deg.y))
+		var stretch := rng.randf_range(length.x, length.y)
+		var girth := rng.randf_range(0.8, 1.2)
+		# The cone points up (+Y); lay it along +Z, lean it away from the axis, then spread it round.
+		var basis := Basis(Vector3.BACK, around) * Basis(Vector3.RIGHT, -lean) * Basis(Vector3.RIGHT, PI / 2.0)
+		basis = basis * Basis.from_scale(Vector3(girth, stretch, girth))
+		multi.set_instance_transform(i, Transform3D(basis, Vector3.ZERO))
+	var instance := MultiMeshInstance3D.new()
+	instance.multimesh = multi
+	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return instance
 
 
 ## Grows then drops to nothing, hard at the end: debris that burns out.

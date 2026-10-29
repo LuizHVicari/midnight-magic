@@ -13,6 +13,7 @@ var _health := Health.new()
 var _pivot := Node3D.new()
 var _label := Label3D.new()
 var _flames: GPUParticles3D
+var _curse_aura: GPUParticles3D
 var _materials: Array[StandardMaterial3D] = []
 var _collider := CollisionShape3D.new()
 
@@ -26,6 +27,7 @@ func _ready() -> void:
 	_health.damaged.connect(_on_damaged)
 	_health.died.connect(_on_died)
 	_health.burning_changed.connect(func(burning: bool) -> void: _flames.emitting = burning)
+	_health.cursed_changed.connect(_on_cursed)
 	_on_changed(max_health, max_health)
 
 
@@ -69,6 +71,10 @@ func _build() -> void:
 	_flames.emitting = false
 	add_child(_flames)
 
+	_curse_aura = ShadowVfx.curse_aura()
+	_curse_aura.position.y = 1.2
+	add_child(_curse_aura)
+
 
 func _part(mesh: Mesh, color: Color, at: Vector3) -> void:
 	var material := StandardMaterial3D.new()
@@ -81,6 +87,12 @@ func _part(mesh: Mesh, color: Color, at: Vector3) -> void:
 	instance.position = at
 	_pivot.add_child(instance)
 	_materials.append(material)
+
+
+## The aura thickens with every stack of curse.
+func _on_cursed(stacks: int) -> void:
+	_curse_aura.emitting = stacks > 0
+	_curse_aura.amount_ratio = clampf(stacks / 3.0, 0.34, 1.0)
 
 
 func _on_changed(value: float, maximum: float) -> void:

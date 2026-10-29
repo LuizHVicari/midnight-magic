@@ -39,25 +39,7 @@ static func flames(radius: float, amount: int, lifetime: float, size: float) -> 
 
 ## Crown of flame tongues around the flight axis, each leaning outward and back.
 static func _horns() -> MultiMeshInstance3D:
-	var multi := MultiMesh.new()
-	multi.transform_format = MultiMesh.TRANSFORM_3D
-	multi.mesh = _tongue(0.0, 0.32, 0.3)
-	multi.instance_count = HORNS
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 7
-	for i in HORNS:
-		var around := TAU * (i + rng.randf_range(-0.2, 0.2)) / HORNS
-		var lean := deg_to_rad(rng.randf_range(4.0, 30.0))
-		var length := rng.randf_range(0.6, 1.4)
-		var girth := rng.randf_range(0.8, 1.2)
-		# The cone points up (+Y); lay it along +Z, lean it away from the axis, then spread it round.
-		var basis := Basis(Vector3.BACK, around) * Basis(Vector3.RIGHT, -lean) * Basis(Vector3.RIGHT, PI / 2.0)
-		basis = basis * Basis.from_scale(Vector3(girth, length, girth))
-		multi.set_instance_transform(i, Transform3D(basis, Vector3.ZERO))
-	var instance := MultiMeshInstance3D.new()
-	instance.multimesh = multi
-	instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return instance
+	return Vfx.crown(_tongue(0.0, 0.32, 0.3), HORNS)
 
 
 ## One tongue of plasma flame, a unit cone pointing up (+Y).
