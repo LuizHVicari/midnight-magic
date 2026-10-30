@@ -1,7 +1,12 @@
-[gd_resource type="Resource" script_class="Element" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="Element" load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scenes/combat/element.gd" id="1_element"]
 [ext_resource type="Resource" path="res://scenes/combat/abilities/earth_basic.tres" id="2_basic"]
+[ext_resource type="Resource" path="res://scenes/combat/abilities/earth_boulder.tres" id="3_boulder"]
+[ext_resource type="Resource" path="res://scenes/combat/abilities/earth_pillar.tres" id="4_pillar"]
+[ext_resource type="Resource" path="res://scenes/combat/abilities/earth_wall.tres" id="5_wall"]
+[ext_resource type="Resource" path="res://scenes/combat/abilities/earth_cocoon.tres" id="6_cocoon"]
+[ext_resource type="Resource" path="res://scenes/combat/abilities/earth_shatter.tres" id="7_shatter"]
 
 [resource]
 script = ExtResource("1_element")
@@ -10,3 +15,4 @@ color = Color(0.85, 0.55, 0.28, 1)
 robe = Color(0.5, 0.33, 0.18, 1)
 cape = Color(0.35, 0.42, 0.18, 1)
 basic = ExtResource("2_basic")
+abilities = [ExtResource("3_boulder"), ExtResource("4_pillar"), ExtResource("5_wall"), ExtResource("6_cocoon"), ExtResource("7_shatter")]

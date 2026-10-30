@@ -89,6 +89,7 @@ var _stagger := 0.0
 var _stagger_immune := 0.0
 var _alarmed := false
 var _blind_left := 0.0
+var _blow_target: StoneBlock
 var _fear_left := 0.0
 var _afraid := false
 var _mark := AlertMark.new()
@@ -573,8 +574,11 @@ func _brawler(player: Player, delta: float) -> void:
 	to.y = 0.0
 	if to.length() > _foe.reach * 0.85:
 		var charge := 1.0 + (CHARGE_BONUS if to.length() > CHARGE_FROM else 0.0)
-		_walk_to(_flank_point(player), species.run_speed * charge, delta, to.length() > 3.5)
+		var moved := _walk_to(_flank_point(player), species.run_speed * charge, delta, to.length() > 3.5)
+		_stuck = _stuck + delta if moved < species.run_speed * 0.25 else 0.0
 		play("run")
+		if _stuck > 0.5:
+			_break_stone_in_the_way(to, delta)
 		return
 	_drive(Vector3.ZERO, 0.0, delta)
 	face(to, delta)
@@ -583,6 +587,35 @@ func _brawler(player: Player, delta: float) -> void:
 		return
 	if _facing().angle_to(to) < deg_to_rad(35.0):
 		_begin_blow(Blow.MELEE)
+
+
+## Stuck behind a block of the hero's stone: it stops and hits it until it gives way.
+func _break_stone_in_the_way(toward: Vector3, delta: float) -> void:
+	var block := _stone_in_the_way(toward)
+	if block == null:
+		return
+	var spot := block.nearest_point(global_position) - global_position
+	spot.y = 0.0
+	_drive(Vector3.ZERO, 0.0, delta)
+	face(spot, delta)
+	if _attack_cd > 0.0 or _facing().angle_to(spot) > deg_to_rad(50.0):
+		return
+	_blow_target = block
+	_begin_blow(Blow.MELEE)
+
+
+## The nearest stone block within reach that lies the way the foe is heading.
+func _stone_in_the_way(toward: Vector3) -> StoneBlock:
+	var best: StoneBlock = null
+	var best_distance := _foe.reach * 1.2
+	for block: StoneBlock in get_tree().get_nodes_in_group(StoneBlock.BLOCKS).filter(func(node: Node) -> bool: return node is StoneBlock):
+		var spot := block.nearest_point(global_position) - global_position
+		spot.y = 0.0
+		if spot.length() >= best_distance or toward.angle_to(spot) > deg_to_rad(80.0):
+			continue
+		best = block
+		best_distance = spot.length()
+	return best
 
 
 ## The spot beside the hero this foe heads for, so a group fans out and comes from several
@@ -666,6 +699,9 @@ func _attack_tick(delta: float) -> void:
 
 
 func _land_blow(player: Player) -> void:
+	if _blow_target != null:
+		_hit_stone()
+		return
 	if player == null or not player.health.is_alive():
 		return
 	if _blow == Blow.SHOT:
@@ -682,6 +718,18 @@ func _land_blow(player: Player) -> void:
 	player.health.take_damage(amount, null, global_position)
 	player.health.push(to.normalized() * species.attack_push + Vector3.UP * 1.5)
 	Vfx.sparks(get_parent(), player.global_position + Vector3.UP * 1.3, Color(1.0, 0.55, 0.4), 8)
+
+
+func _hit_stone() -> void:
+	var block := _blow_target
+	_blow_target = null
+	if not is_instance_valid(block):
+		return
+	var spot := block.nearest_point(global_position) - global_position
+	spot.y = 0.0
+	if spot.length() > _foe.reach * 1.4:
+		return
+	block.health.take_damage(_foe.damage * damage_multiplier())
 
 
 func _shoot(player: Player) -> void:

@@ -124,6 +124,15 @@ func lift(speed: float) -> void:
 	_lift_left = CARRY_HOLD
 
 
+## Throws it up at [param speed] (m/s); it is helpless for a moment and then falls.
+func launch(speed: float) -> void:
+	if dead or not _grounded_kind():
+		return
+	velocity.y = speed
+	_lift_speed = speed
+	_lift_left = 0.12
+
+
 ## Drags it along at [param wanted] (m/s, sideways) while this keeps being called. It cannot act.
 func pull(wanted: Vector3) -> void:
 	if dead or not _grounded_kind():

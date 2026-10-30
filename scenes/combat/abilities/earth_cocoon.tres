@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Ability" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/combat/ability.gd" id="1_ability"]
+[ext_resource type="Script" path="res://scenes/combat/earth_cocoon_action.gd" id="2_action"]
+
+[resource]
+script = ExtResource("1_ability")
+display_name = "Stone Cocoon"
+description = "A shell of stone closes round the foe you aim at: it cannot move or act, and takes extra damage from everything but earth. Hitting it wears the shell down. Heavy foes break out sooner."
+cost = 30.0
+cooldown = 12.0
+action_script = ExtResource("2_action")

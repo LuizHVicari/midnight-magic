@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Ability" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/combat/ability.gd" id="1_ability"]
+[ext_resource type="Script" path="res://scenes/combat/earth_shatter_action.gd" id="2_action"]
+
+[resource]
+script = ExtResource("1_ability")
+display_name = "Shatter"
+description = "Bursts every block of your stone in reach into shards that hurt everything round it, the more the more it had left in it. Does nothing, and costs nothing, if there is no stone."
+cost = 25.0
+cooldown = 8.0
+action_script = ExtResource("2_action")

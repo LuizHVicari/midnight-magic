@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Ability" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/combat/ability.gd" id="1_ability"]
+[ext_resource type="Script" path="res://scenes/combat/earth_wall_action.gd" id="2_action"]
+
+[resource]
+script = ExtResource("1_ability")
+display_name = "Stone Wall"
+description = "A wide wall of stone rises across the way you aim. It blocks arrows, sight and the way, takes a good deal of damage and crumbles after a while."
+cost = 30.0
+cooldown = 14.0
+action_script = ExtResource("2_action")

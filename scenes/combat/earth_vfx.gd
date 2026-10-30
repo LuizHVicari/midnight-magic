@@ -106,6 +106,81 @@ static func stun_halo() -> GPUParticles3D:
 	return halo
 
 
+## A crooked block of faceted stone standing on the origin, [param size] big, its top narrower by
+## [param taper] (0 straight sides). Flat shaded with the stone colors baked in, terracotta at the foot
+## to sand on top, and each face a touch lighter or darker than its neighbors.
+static func block_mesh(size: Vector3, seed_value: int, taper := 0.12) -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var half := Vector2(size.x, size.z) * 0.5
+	var bottom: Array[Vector3] = []
+	var top: Array[Vector3] = []
+	for i in 4:
+		var side := Vector2(-1.0 if i % 2 == 0 else 1.0, -1.0 if i < 2 else 1.0)
+		var slip := Vector3(rng.randf_range(-0.07, 0.07) * size.x, 0.0, rng.randf_range(-0.07, 0.07) * size.z)
+		bottom.append(Vector3(side.x * half.x, 0.0, side.y * half.y) + slip)
+		top.append(Vector3(side.x * half.x * (1.0 - taper), size.y * rng.randf_range(0.94, 1.03), side.y * half.y * (1.0 - taper)) + slip * 0.6)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(-1)
+	var ring := [0, 1, 3, 2]
+	for j in 4:
+		var a: int = ring[j]
+		var b: int = ring[(j + 1) % 4]
+		_quad(st, bottom[a], bottom[b], top[b], top[a], size.y, rng.randf_range(0.88, 1.08))
+	_quad(st, top[0], top[2], top[3], top[1], size.y, rng.randf_range(1.0, 1.1))
+	st.generate_normals()
+	return st.commit()
+
+
+## A rough boulder of [param radius]: a low-poly ball with every corner pushed about, flat shaded
+## in stone colors, darker below and lighter on top.
+static func rock_mesh(radius: float, seed_value: int) -> ArrayMesh:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var sphere := SphereMesh.new()
+	sphere.radius = radius
+	sphere.height = radius * 2.0
+	sphere.radial_segments = 8
+	sphere.rings = 5
+	var arrays := sphere.get_mesh_arrays()
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var pushed := {}  # the same corner is pushed the same way on every face it joins
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(-1)
+	for i in range(0, indices.size(), 3):
+		var corner: Array[Vector3] = []
+		for k in 3:
+			var v := verts[indices[i + k]]
+			var key := Vector3i((v * 100.0).round())
+			if not pushed.has(key):
+				pushed[key] = v * rng.randf_range(0.82, 1.15)
+			corner.append(pushed[key])
+		var shade := rng.randf_range(0.85, 1.1)
+		var heights: Array[Color] = []
+		for v in corner:
+			var up := clampf(v.y / (radius * 2.0) + 0.5, 0.0, 1.0)
+			heights.append(_stone(up, shade))
+		_tri(st, corner[0], corner[1], corner[2], heights[0], heights[1], heights[2])
+	st.generate_normals()
+	return st.commit()
+
+
+## Weathered stone from foot to top, a little browner and darker than the spikes.
+static func _stone(height: float, factor: float) -> Color:
+	var base := PEBBLE.lerp(MID, clampf(height, 0.0, 1.0) * 0.7)
+	return Color(base.r * factor, base.g * factor, base.b * factor)
+
+
+## Two triangles from the corners of a face, colored by height up a block [param total] tall.
+static func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, total: float, shade: float) -> void:
+	_tri(st, a, b, c, _stone(a.y / total, shade), _stone(b.y / total, shade), _stone(c.y / total, shade))
+	_tri(st, a, c, d, _stone(a.y / total, shade), _stone(c.y / total, shade), _stone(d.y / total, shade))
+
+
+
 static func _build_spike(seed_value: int) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value

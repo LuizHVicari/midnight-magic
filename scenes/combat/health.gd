@@ -107,6 +107,11 @@ func _tick_stun(delta: float) -> void:
 		_end_stun()
 
 
+## Ends a stun early.
+func release_stun() -> void:
+	_end_stun()
+
+
 func _end_stun() -> void:
 	var was := _stun_left > 0.0 or _stun_element != null
 	_stun_left = 0.0
