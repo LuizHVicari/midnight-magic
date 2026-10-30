@@ -714,6 +714,8 @@ func _steer(direction: Vector3) -> Vector3:
 
 
 func _passable(direction: Vector3) -> bool:
+	if _fire_ahead(global_position + direction * LOOKAHEAD):
+		return false
 	var terrain := get_terrain()
 	if terrain != null:
 		var ahead := global_position + direction * LOOKAHEAD
@@ -721,6 +723,14 @@ func _passable(direction: Vector3) -> bool:
 		if not dry or not terrain.in_bounds(ahead.x, ahead.z, 8.0):
 			return false
 	return not test_move(global_transform.translated(Vector3.UP * 0.5), direction * 1.4)
+
+
+## Whether a wall of fire stands at [param point]; foes walk round those when they can.
+func _fire_ahead(point: Vector3) -> bool:
+	for wall: FireWall in get_tree().get_nodes_in_group("fire_walls"):
+		if wall.covers(point):
+			return true
+	return false
 
 
 func _pick_goal() -> Vector3:

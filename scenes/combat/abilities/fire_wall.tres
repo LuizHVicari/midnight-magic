@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Ability" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/combat/ability.gd" id="1_ability"]
+[ext_resource type="Script" path="res://scenes/combat/fire_wall_action.gd" id="2_action"]
+
+[resource]
+script = ExtResource("1_ability")
+display_name = "Fire Wall"
+description = "Raises a wall of flame across the way you aim. It burns anything that stands in it, and foes walk round it."
+cost = 30.0
+cooldown = 14.0
+action_script = ExtResource("2_action")

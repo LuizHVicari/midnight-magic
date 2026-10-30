@@ -300,6 +300,11 @@ func _on_hurt(amount: float, _element: Element) -> void:
 
 
 ## Camera jolt from a hit: a quick random wobble that dies away.
+## Shakes the camera for a moment, [param amount] in meters of offset (capped).
+func shake(amount: float) -> void:
+	_shake = maxf(_shake, minf(amount, HURT_SHAKE_MAX * 1.5))
+
+
 func _apply_shake(delta: float) -> void:
 	_shake = maxf(_shake - SHAKE_DECAY * delta, 0.0)
 	camera.h_offset = randf_range(-1.0, 1.0) * _shake

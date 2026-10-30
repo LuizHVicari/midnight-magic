@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Ability" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/combat/ability.gd" id="1_ability"]
+[ext_resource type="Script" path="res://scenes/combat/flamethrower_action.gd" id="2_action"]
+
+[resource]
+script = ExtResource("1_ability")
+display_name = "Flamethrower"
+description = "Hold to spit a jet of fire from the wand. It hurts hard and sets everything in its short cone alight, but the wand heats up: hold too long and it overheats and locks for a few seconds."
+cost = 5.0
+cooldown = 0.0
+action_script = ExtResource("2_action")

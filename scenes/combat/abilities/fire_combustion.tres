@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Ability" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/combat/ability.gd" id="1_ability"]
+[ext_resource type="Script" path="res://scenes/combat/fire_combustion_action.gd" id="2_action"]
+
+[resource]
+script = ExtResource("1_ability")
+display_name = "Combustion"
+description = "Sets off everything that is burning: each burning creature in reach blows up for a good hit plus several times what its burn had left, and the fire goes out. Does nothing, and costs nothing, if nothing is burning."
+cost = 30.0
+cooldown = 10.0
+action_script = ExtResource("2_action")

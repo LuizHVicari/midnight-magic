@@ -11,6 +11,11 @@ var ability: Ability
 var cooldown_left := 0.0
 
 
+## A 0..1 reading to show on the quick slot (heat, charge...), or -1 for none.
+func gauge() -> float:
+	return -1.0
+
+
 ## Button pressed.
 func begin() -> void:
 	pass

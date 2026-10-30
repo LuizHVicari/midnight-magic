@@ -32,6 +32,58 @@ static func fireball_trail() -> Array[GPUParticles3D]:
 	return [embers, smoke]
 
 
+## A jet of fire shot out along the emitter's -Z: a stream of glowing plasma puffs that swell as they
+## go, and chunky embers thrown with it. [param reach] is how far it gets; the particles live
+## just long enough to travel that. In world space, so turning the emitter bends the stream.
+static func jet(reach: float, speed: float) -> Array[GPUParticles3D]:
+	var lifetime := reach / speed
+	var plasma := ParticleProcessMaterial.new()
+	plasma.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	plasma.emission_sphere_radius = 0.1
+	plasma.direction = Vector3.FORWARD
+	plasma.spread = 6.0
+	plasma.initial_velocity_min = speed * 0.85
+	plasma.initial_velocity_max = speed * 1.1
+	plasma.gravity = Vector3(0.0, 2.0, 0.0)
+	plasma.scale_min = 0.7
+	plasma.scale_max = 1.2
+	plasma.scale_curve = _swell()
+	# Alpha blended, not additive, so the oranges and reds stay saturated against a bright sky.
+	plasma.color_ramp = Vfx.ramp([
+		Color(HOT, 0.95), Color(MID, 0.92), Color(MID, 0.85), Color(COOL, 0.8), Color(COOL, 0.55), Color(PINK, 0.3), Color(ASH, 0.0),
+	])
+	var flame := _emitter(plasma, _plasma_quad(1.15), 150, lifetime)
+	var chunks := _chunks(0.1, 36, lifetime * 1.1, 0.1, Vector2(speed * 0.7, speed * 1.1), 14.0, Vector3(0.0, -3.0, 0.0))
+	(chunks.process_material as ParticleProcessMaterial).direction = Vector3.FORWARD
+	return [flame, chunks]
+
+
+## Soft round blob that blends over what is behind it instead of adding to it.
+static func _plasma_quad(size: float) -> QuadMesh:
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	material.vertex_color_use_as_albedo = true
+	material.albedo_texture = Vfx.glow_texture()
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE * size
+	quad.material = material
+	return quad
+
+
+## Small at the nozzle, growing to full size along the way.
+static func _swell() -> CurveTexture:
+	var curve := Curve.new()
+	curve.add_point(Vector2(0.0, 0.25))
+	curve.add_point(Vector2(0.6, 1.0))
+	curve.add_point(Vector2(1.0, 1.4))
+	var texture := CurveTexture.new()
+	texture.curve = curve
+	return texture
+
+
 ## Embers drifting up from something that is burning.
 static func flames(radius: float, amount: int, lifetime: float, size: float) -> GPUParticles3D:
 	return _chunks(radius, amount, lifetime, size, Vector2(0.3, 1.0), 25.0, Vector3(0.0, 2.2, 0.0))

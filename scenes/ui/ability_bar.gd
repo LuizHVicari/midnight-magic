@@ -69,6 +69,8 @@ func _draw_picture(rect: Rect2, ability: Ability, accent: Color) -> void:
 func _draw_state(rect: Rect2, ability: Ability) -> void:
 	var action := player.ability_action(ability)
 	var inner := rect.grow(-3.0)
+	if action != null and action.gauge() >= 0.0:
+		_draw_gauge(inner, action.gauge())
 	if player.mana < ability.cost:
 		draw_rect(inner, NO_MANA)
 	if action == null or action.cooldown_left <= 0.0:
@@ -93,6 +95,14 @@ func _sweep(inner: Rect2, share: float) -> PackedVector2Array:
 		var reach := inner.size.x * 0.5 / maxf(absf(ray.x), absf(ray.y))
 		points.append(center + ray * reach)
 	return points
+
+
+## A thin bar along the bottom of the slot, yellow when low and red as it fills.
+func _draw_gauge(inner: Rect2, share: float) -> void:
+	var bar := Rect2(inner.position + Vector2(0.0, inner.size.y - 6.0), Vector2(inner.size.x, 6.0))
+	draw_rect(bar, Color(0.05, 0.03, 0.08, 0.85))
+	var fill := Rect2(bar.position, Vector2(bar.size.x * clampf(share, 0.0, 1.0), bar.size.y))
+	draw_rect(fill, Color(1.0, 0.85, 0.3).lerp(Color(0.95, 0.15, 0.1), share))
 
 
 func _frame(rect: Rect2, wood: Color) -> void:

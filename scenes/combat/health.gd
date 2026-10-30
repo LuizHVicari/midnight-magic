@@ -157,6 +157,11 @@ func is_burning() -> bool:
 	return _burn_left > 0.0
 
 
+## Damage the current burn would still do if left to run out.
+func burn_remaining() -> float:
+	return _burn_dps * _burn_left if is_burning() else 0.0
+
+
 ## Stunned targets cannot act or move (whatever drives the owner checks this), and take extra
 ## damage from every element except the one that stunned them.
 func is_stunned() -> bool:
