@@ -159,6 +159,22 @@ static func orbiters(count: int, radii: Vector2, heights: Vector2, colors: Array
 	return pivot
 
 
+## Soft round blob that blends over what is behind it instead of adding to it, so it can be
+## dark: smoke and shadow. Tinted by the particle's color, including its alpha.
+static func alpha_quad(size: float) -> QuadMesh:
+	var material := StandardMaterial3D.new()
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+	material.vertex_color_use_as_albedo = true
+	material.albedo_texture = glow_texture()
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE * size
+	quad.material = material
+	return quad
+
+
 ## Colors spread evenly over a particle's life.
 static func ramp(colors: Array[Color]) -> GradientTexture1D:
 	var gradient := Gradient.new()

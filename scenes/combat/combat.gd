@@ -52,6 +52,37 @@ static func blast(
 	return struck
 
 
+## How dark it is now (0 in daylight, 1 at night), or 0 when the world has no clock.
+static func night_amount(tree: SceneTree) -> float:
+	var clock := tree.get_first_node_in_group("day_night") as DayNight
+	return clock.night if clock != null else 0.0
+
+
+## Bodies of everything that has [Health], so rays and sweeps can pass through creatures.
+static func creature_bodies(tree: SceneTree) -> Array[RID]:
+	var bodies: Array[RID] = []
+	for health: Health in tree.get_nodes_in_group("damageable"):
+		var body := health.get_parent() as CollisionObject3D
+		if body != null:
+			bodies.append(body.get_rid())
+	return bodies
+
+
+## How far a ball of [param radius] can travel from [param origin] along [param direction], up to
+## [param limit], before it would touch the world or stone cover.
+static func free_distance(node: Node3D, origin: Vector3, direction: Vector3, limit: float, radius: float, exclude: Array[RID] = []) -> float:
+	var shape := SphereShape3D.new()
+	shape.radius = radius
+	var query := PhysicsShapeQueryParameters3D.new()
+	query.shape = shape
+	query.transform = Transform3D(Basis.IDENTITY, origin)
+	query.motion = direction * limit
+	query.collision_mask = WORLD | STONE
+	query.exclude = exclude
+	var fractions := node.get_world_3d().direct_space_state.cast_motion(query)
+	return limit * fractions[0]
+
+
 ## Closest-to-the-line living target inside a cone, for attacks that bend a little towards it.
 static func find_target(node: Node, origin: Vector3, direction: Vector3, reach: float, cone_deg: float) -> Health:
 	var best: Health = null

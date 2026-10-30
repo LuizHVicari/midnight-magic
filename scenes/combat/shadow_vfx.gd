@@ -24,6 +24,53 @@ static func wisp_trail() -> Array[GPUParticles3D]:
 	return [Vfx.motes(DEEP, 30, 0.7, 0.5, 0.15, GLOW), smoke(0.15, 9, 0.8, 0.3)]
 
 
+## A ring of [param count] tendrils of living shadow standing up round a vertical axis, each leaning
+## outward, up to about [param height] meters tall. Scale the node to grow and sink them.
+static func rising_tendrils(count: int, height: float) -> Node3D:
+	var root := Node3D.new()
+	var crown := Vfx.crown(_tendril(0.45, 0.6), count, 23, Vector2(8.0, 38.0), Vector2(height * 0.5, height))
+	crown.rotation_degrees.x = -90.0  # the crown runs along +Z: stand it up
+	root.add_child(crown)
+	return root
+
+
+## The puff of smoke and violet sparks where something steps out of or into shadow, with a flash of
+## darkness that takes light away.
+static func vanish(parent: Node, at: Vector3) -> void:
+	var process := ParticleProcessMaterial.new()
+	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	process.emission_sphere_radius = 0.4
+	process.direction = Vector3.UP
+	process.spread = 180.0
+	process.initial_velocity_min = 1.5
+	process.initial_velocity_max = 4.5
+	process.damping_min = 2.0
+	process.damping_max = 3.5
+	process.gravity = Vector3(0.0, 1.0, 0.0)
+	process.scale_min = 1.0
+	process.scale_max = 2.0
+	process.scale_curve = Vfx.puff_curve()
+	process.color_ramp = Vfx.ramp([Color(0.05, 0.0, 0.1, 0.85), Color(0.08, 0.01, 0.15, 0.5), Color(0.03, 0.0, 0.06, 0.0)])
+	var smoke := Vfx.particles(process, Vfx.alpha_quad(1.4), 26, 1.2)
+	smoke.local_coords = false
+	smoke.one_shot = true
+	smoke.explosiveness = 1.0
+	smoke.finished.connect(smoke.queue_free)
+	parent.add_child(smoke)
+	smoke.global_position = at
+	smoke.emitting = true
+	Vfx.sparks(parent, at, GLOW, 16)
+	var light := OmniLight3D.new()
+	light.light_negative = true
+	light.light_energy = 2.5
+	light.omni_range = 7.0
+	parent.add_child(light)
+	light.global_position = at
+	var tween := light.create_tween()
+	tween.tween_property(light, "light_energy", 0.0, 0.5)
+	tween.tween_callback(light.queue_free)
+
+
 ## Dark low-poly smoke puffs that swell, drift up and thin out; left in world space.
 static func smoke(radius: float, amount: int, lifetime: float, size: float) -> GPUParticles3D:
 	var process := ParticleProcessMaterial.new()

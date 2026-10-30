@@ -12,11 +12,13 @@ const SPACING := 8
 
 var _badge: ProgressBadge
 var _flash := HitFlash.new()
+var _veil := ShadowVeil.new()
 
 var _column := VBoxContainer.new()
 
 
 func _ready() -> void:
+	add_child(_veil)  # first, so it sits under the bars and the crosshair
 	_column.add_theme_constant_override("separation", SPACING)
 	_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_column.position = MARGIN
@@ -43,6 +45,16 @@ func show_abilities(player: Player) -> void:
 	var bar := AbilityBar.new()
 	bar.player = player
 	add_child(bar)
+
+
+## Whether the hero is inside a blackout: the screen darkens round the edges.
+func set_darkness(on: bool) -> void:
+	_veil.set_inside(on)
+
+
+## A burst of dread over the screen: dense dark smoke closing in, then fading.
+func dread(strength := 1.0, time := 3.2) -> void:
+	_veil.pulse(strength, time)
 
 
 ## The level, experience and coins panel under the bars; created on first use.

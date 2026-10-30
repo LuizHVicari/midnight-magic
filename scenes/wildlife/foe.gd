@@ -89,6 +89,8 @@ var _stagger := 0.0
 var _stagger_immune := 0.0
 var _alarmed := false
 var _blind_left := 0.0
+var _fear_left := 0.0
+var _afraid := false
 var _mark := AlertMark.new()
 
 
@@ -220,6 +222,7 @@ func _sight_gain(player: Player, to: Vector3) -> float:
 		return 0.0
 	var sitting := state == State.REST
 	var range_now := _foe.sight_range * lerpf(1.0, 0.65, _night_amount()) * player.visibility_factor()
+	range_now *= BlackoutZone.sight_factor(get_tree(), global_position, player)
 	range_now *= 0.5 if sitting else 1.0
 	var dist := to.length()
 	if dist > range_now:
@@ -285,6 +288,9 @@ func _update_mark() -> void:
 	if dead:
 		_mark.visible = false
 		return
+	if _afraid:
+		_mark.show_fear()
+		return
 	if _blind_left > 0.0:
 		_mark.show_level(0.55, false, false)  # a "?": it cannot see and does not know where you are
 		return
@@ -324,10 +330,16 @@ func _think(delta: float) -> void:
 	_stagger = maxf(_stagger - delta, 0.0)
 	_stagger_immune = maxf(_stagger_immune - delta, 0.0)
 	_blind_left = maxf(_blind_left - delta, 0.0)
+	_fear_left = maxf(_fear_left - delta, 0.0)
 	_heal(delta)
 	if _stagger > 0.0:
 		_drive(Vector3.ZERO, 0.0, delta)
 		return
+	if _afraid:
+		if _fear_left > 0.0:
+			_flee(delta)
+			return
+		_recover_nerve()
 	_notice()
 	match state:
 		State.REST:
@@ -498,6 +510,40 @@ func blind(seconds: float) -> void:
 func _landed(_damage: float) -> void:
 	_stagger = LANDING_STAGGER
 	_animation_player.play(_animations["hit"], 0.05)
+
+
+## Terrified for [param seconds]: it drops whatever it was doing and runs from the hero, attacking
+## nothing. Heavy foes shake it off sooner.
+func frighten(seconds: float) -> void:
+	if dead:
+		return
+	_fear_left = maxf(_fear_left, seconds * (0.4 if is_heavy() else 1.0))
+	_afraid = true
+	state = State.ENGAGE  # even a resting foe jumps up; fear ends back in the fight
+	_state_time = 0.0
+	_update_mark()
+	_update_plate()
+
+
+func is_afraid() -> bool:
+	return _afraid
+
+
+func _flee(delta: float) -> void:
+	var player := _get_player()
+	var away := global_position - (player.global_position if player != null else _last_known)
+	away.y = 0.0
+	var direction := _steer(away.normalized()) if away.length() > 0.1 else Vector3.ZERO
+	_drive(direction, species.run_speed * 1.05, delta)
+	play("run")
+
+
+## Nerve back: it turns on the hero again.
+func _recover_nerve() -> void:
+	_afraid = false
+	awareness = 1.0
+	_enter(State.ENGAGE)
+	_update_mark()
 
 
 func is_blind() -> bool:

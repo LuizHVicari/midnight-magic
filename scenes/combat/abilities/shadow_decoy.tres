@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Ability" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/combat/ability.gd" id="1_ability"]
+[ext_resource type="Script" path="res://scenes/combat/shadow_decoy_action.gd" id="2_action"]
+
+[resource]
+script = ExtResource("1_ability")
+display_name = "Shadow Decoy"
+description = "Puts a copy of yourself made of shadow where you aim. Foes that are not fighting come to look at it and keep coming back, so it draws them off. Lasts longer and calls from farther at night."
+cost = 25.0
+cooldown = 16.0
+action_script = ExtResource("2_action")

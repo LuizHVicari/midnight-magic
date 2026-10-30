@@ -1,7 +1,11 @@
-[gd_resource type="Resource" script_class="Element" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="Element" load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scenes/combat/element.gd" id="1_element"]
 [ext_resource type="Resource" path="res://scenes/combat/abilities/shadow_basic.tres" id="2_basic"]
+[ext_resource type="Resource" path="res://scenes/combat/abilities/shadow_step.tres" id="3_step"]
+[ext_resource type="Resource" path="res://scenes/combat/abilities/shadow_dread.tres" id="4_dread"]
+[ext_resource type="Resource" path="res://scenes/combat/abilities/shadow_decoy.tres" id="5_decoy"]
+[ext_resource type="Resource" path="res://scenes/combat/abilities/shadow_blackout.tres" id="6_blackout"]
 
 [resource]
 script = ExtResource("1_element")
@@ -10,3 +14,4 @@ color = Color(0.55, 0.2, 0.85, 1)
 robe = Color(0.3, 0.1, 0.45, 1)
 cape = Color(0.1, 0.03, 0.18, 1)
 basic = ExtResource("2_basic")
+abilities = [ExtResource("3_step"), ExtResource("4_dread"), ExtResource("5_decoy"), ExtResource("6_blackout")]

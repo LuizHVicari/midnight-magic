@@ -182,6 +182,10 @@ var glow_sources := 0
 var gliding := false
 ## Seconds left of the breeze cloak: quiet footsteps and a faster walk.
 var breeze_left := 0.0
+## Seconds left of being quiet after a shadow step at night: footsteps carry much less.
+var hush_left := 0.0
+## Seconds left of being lit by a burst of light: it shows up even through a blackout.
+var lit_left := 0.0
 var _air_speed := 0.0  # how fast the hero was falling a moment ago
 var _landing_left := 0.0
 var _shove := Vector3.ZERO  # sideways speed from shoves; fades, and adds to walking
@@ -300,6 +304,12 @@ func _on_hurt(amount: float, _element: Element) -> void:
 
 
 ## Camera jolt from a hit: a quick random wobble that dies away.
+## Whether the hero gives off light of their own right now (an orb, a flash): that cuts through
+## darkness.
+func is_lit() -> bool:
+	return glow_sources > 0 or lit_left > 0.0
+
+
 ## Shakes the camera for a moment, [param amount] in meters of offset (capped).
 func shake(amount: float) -> void:
 	_shake = maxf(_shake, minf(amount, HURT_SHAKE_MAX * 1.5))
@@ -425,7 +435,7 @@ func noise_level() -> float:
 	if moving:
 		level = 2.0 if sprinting else (0.35 if crouching else 1.0)
 	var noise := level + (1.5 if attacking else 0.0)
-	return noise * (BREEZE_NOISE if breeze_left > 0.0 else 1.0)
+	return noise * (BREEZE_NOISE if breeze_left > 0.0 or hush_left > 0.0 else 1.0)
 
 
 ## Points of the body that enemies try to see: head and chest. Crouching lowers them, so low
@@ -584,6 +594,9 @@ func _process(delta: float) -> void:
 	_apply_shake(delta)
 	_tick_shield(delta)
 	breeze_left = maxf(breeze_left - delta, 0.0)
+	hush_left = maxf(hush_left - delta, 0.0)
+	lit_left = maxf(lit_left - delta, 0.0)
+	$Hud.set_darkness(BlackoutZone.contains(get_tree(), global_position))
 	spring_arm.spring_length = lerpf(
 		spring_arm.spring_length,
 		target_zoom,

@@ -12,6 +12,7 @@ const ALERT_DAY := Vector2(35.0, 0.5)  # radius and awareness given, in daylight
 const ALERT_NIGHT := Vector2(85.0, 0.9)  # and at night
 const BURST_TIME := 0.3
 const LIGHT_COLOR := Color(1.0, 0.95, 0.75)
+const LIT_TIME := 4.0  # how long the hero shows up even through a blackout
 const DELAY := 0.12  # lets the arm come up before the light goes off
 const BODY_CENTER := 1.2
 
@@ -25,6 +26,7 @@ func _cast() -> bool:
 
 func _burst() -> void:
 	var at := caster.global_position + Vector3.UP * BODY_CENTER
+	caster.lit_left = LIT_TIME
 	_blind_and_alert(at)
 	_show(at)
 	(caster.get_node("Hud") as StatsHud).flash(1.0, Color(1.0, 0.97, 0.85), 1.0, 0.8)

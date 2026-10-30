@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Ability" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/combat/ability.gd" id="1_ability"]
+[ext_resource type="Script" path="res://scenes/combat/shadow_blackout_action.gd" id="2_action"]
+
+[resource]
+script = ExtResource("1_ability")
+display_name = "Blackout"
+description = "Spreads a zone of living darkness where you aim. Foes in it, or looking at you in it, see only a fifth as far, and your screen darkens at the edges so you know you are inside. A light of your own half undoes it."
+cost = 45.0
+cooldown = 30.0
+action_script = ExtResource("2_action")

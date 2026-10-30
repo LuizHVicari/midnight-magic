@@ -49,6 +49,16 @@ func _process(_delta: float) -> void:
 
 ## [param awareness] 0..1 fills the ring; [param fighting] shows the red "!"; [param heard] tints
 ## the ring cool when the foe only heard the hero.
+## The look of a terrified foe: a full dark-violet ring pulsing round a dark crimson "!".
+func show_fear() -> void:
+	visible = true
+	_glyph.text = "!"
+	_glyph.modulate = Color(0.78, 0.1, 0.38)
+	_material.set_shader_parameter("fill", 1.0)
+	_material.set_shader_parameter("color", Vector3(0.45, 0.1, 0.72))
+	_material.set_shader_parameter("pulse", 1.0)
+
+
 func show_level(awareness: float, fighting: bool, heard: bool) -> void:
 	visible = fighting or awareness >= 0.12
 	if not visible:
