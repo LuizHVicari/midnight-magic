@@ -20,8 +20,16 @@ extends CharacterBody3D
 @export var max_mana: float = 100.0
 @export var mana_regen: float = 8.0  # per second
 @export var mana_regen_delay: float = 1.0  # pause after casting before mana comes back
-@export var primary: Element = preload("res://scenes/combat/elements/light.tres")
-@export var secondary: Element = preload("res://scenes/combat/elements/wind.tres")
+## Elements the hero can switch between, in order; for now all of them. Loaded at startup rather
+## than preloaded: an element points to its attack script, which points back to the player.
+@export var element_paths: PackedStringArray = [
+	"res://scenes/combat/elements/light.tres",
+	"res://scenes/combat/elements/fire.tres",
+	"res://scenes/combat/elements/wind.tres",
+	"res://scenes/combat/elements/water.tres",
+	"res://scenes/combat/elements/earth.tres",
+	"res://scenes/combat/elements/shadow.tres",
+]
 @export var jump_velocity: float = 9.0
 @export var gravity_scale: float = 2.2
 @export var fall_multiplier: float = 1.3
@@ -63,6 +71,7 @@ signal stamina_changed(value: float, maximum: float, exhausted: bool)
 signal mana_changed(value: float, maximum: float)
 signal item_collected(item: String, count: int)
 signal leveled_up(level: int)
+signal element_changed(element: Element)
 ## The guard circle broke; it can be raised again after [param cooldown] seconds.
 signal shield_broken(cooldown: float)
 
@@ -133,8 +142,12 @@ var _cast_anim := ""
 var _cast_lock := 0.0  # seconds the cast still roots the hero; 0 = until its animation ends
 var _hold_at := 0.0  # animation position where the cast pose freezes; 0 = never
 var _hand: Node3D
-var _primary_attack: SpellAttack
-var _secondary_attack: SpellAttack
+var elements: Array[Element] = []
+var current_element: Element
+var _attacks: Array[SpellAttack] = []
+var _element_index := 0
+var _pressed_attack: SpellAttack
+var _outfit := HeroOutfit.new()
 var _last_forward_tap := -1000.0
 var _double_tap_sprint := false
 var target_zoom: float
@@ -166,8 +179,12 @@ func _ready() -> void:
 	mana_changed.connect($Hud.add_bar(StatBar.Kind.MANA).set_value)
 	mana_changed.emit(mana, max_mana)
 	_setup_progress()
-	_primary_attack = _equip_spell(primary)
-	_secondary_attack = _equip_spell(secondary)
+	for path in element_paths:
+		elements.append(load(path) as Element)
+	for each in elements:
+		_attacks.append(_equip_spell(each))
+	_outfit.setup(model)
+	_select_element(0)
 	for anim_name in LOOPED_ANIMS:
 		anim.get_animation(anim_name).loop_mode = Animation.LOOP_LINEAR
 	floor_snap_length = 0.4  # stick to the ground when walking down banks and steps
@@ -205,8 +222,13 @@ func _upper_name(path: String) -> StringName:
 	return StringName(path.get_file())
 
 
+## The name [member _upper] knows an animation by: its library and the animation's own name.
+func _upper_key(path: String) -> StringName:
+	return StringName("%s/%s" % [UPPER_LIBRARY, _upper_name(path)])
+
+
 func _play_upper(path: String, blend := 0.1, speed := 1.0) -> void:
-	_upper.play("%s/%s" % [UPPER_LIBRARY, _upper_name(path)], blend, speed)
+	_upper.play(_upper_key(path), blend, speed)
 
 
 func _build_health() -> void:
@@ -395,8 +417,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_released("move_forward"):
 		_double_tap_sprint = false
 
-	_forward_cast_button(event, "attack", _primary_attack)
-	_forward_cast_button(event, "cast_secondary", _secondary_attack)
+	_forward_cast_button(event)
+	if event.is_action_pressed("switch_element"):
+		switch_element(1)
+	_pick_element_by_key(event)
 	if event.is_action_pressed("interact") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		_interact()
 
@@ -407,11 +431,39 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 ## Presses only count while the mouse is captured; releases always do, so a held spell never sticks.
-func _forward_cast_button(event: InputEvent, action: String, spell: SpellAttack) -> void:
-	if event.is_action_released(action):
-		spell.release()
-	if event.is_action_pressed(action) and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		spell.begin()
+## The release goes to the spell that was started, whatever is equipped by then.
+func _forward_cast_button(event: InputEvent) -> void:
+	if event.is_action_released("attack") and _pressed_attack != null:
+		_pressed_attack.release()
+		_pressed_attack = null
+	if event.is_action_pressed("attack") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+		_pressed_attack = _attacks[_element_index]
+		_pressed_attack.begin()
+
+
+## Number keys pick an element straight away: 1 is the first, 2 the second...
+func _pick_element_by_key(event: InputEvent) -> void:
+	var key := event as InputEventKey
+	if key == null or not key.pressed or key.echo:
+		return
+	var slot := key.keycode - KEY_1
+	if slot >= 0 and slot < elements.size():
+		switch_element(slot - _element_index)
+
+
+## Moves [param step] places along the element list (wrapping). Not while a spell is being cast.
+func switch_element(step: int) -> void:
+	if attacking or step == 0:
+		return
+	_select_element(posmod(_element_index + step, elements.size()))
+	DamagePopup.spawn(get_parent(), global_position + Vector3.UP * 3.3, current_element.display_name, current_element.color)
+
+
+func _select_element(index: int) -> void:
+	_element_index = index
+	current_element = elements[index]
+	_outfit.dress(current_element)
+	element_changed.emit(current_element)
 
 
 func _equip_spell(element: Element) -> SpellAttack:
@@ -681,7 +733,7 @@ func cast_origin() -> Vector3:
 
 
 func _on_animation_finished(anim_name: StringName) -> void:
-	if anim_name == _cast_anim and _cast_lock <= 0.0:
+	if anim_name == _upper_key(_cast_anim) and _cast_lock <= 0.0:
 		attacking = false
 
 

@@ -7,4 +7,6 @@
 script = ExtResource("1_element")
 display_name = "Shadow"
 color = Color(0.55, 0.2, 0.85, 1)
+robe = Color(0.3, 0.1, 0.45, 1)
+cape = Color(0.1, 0.03, 0.18, 1)
 attack_script = ExtResource("2_attack")
