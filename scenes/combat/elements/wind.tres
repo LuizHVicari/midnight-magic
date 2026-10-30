@@ -1,10 +1,12 @@
-[gd_resource type="Resource" script_class="Element" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="Element" load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scenes/combat/element.gd" id="1_element"]
 [ext_resource type="Resource" path="res://scenes/combat/abilities/wind_basic.tres" id="2_basic"]
 [ext_resource type="Resource" path="res://scenes/combat/abilities/wind_bomb.tres" id="3_bomb"]
 [ext_resource type="Resource" path="res://scenes/combat/abilities/wind_glide.tres" id="4_glide"]
 [ext_resource type="Resource" path="res://scenes/combat/abilities/wind_breeze.tres" id="5_breeze"]
+[ext_resource type="Resource" path="res://scenes/combat/abilities/wind_updraft.tres" id="6_updraft"]
+[ext_resource type="Resource" path="res://scenes/combat/abilities/wind_tornado.tres" id="7_tornado"]
 
 [resource]
 script = ExtResource("1_element")
@@ -13,4 +15,4 @@ color = Color(0.5, 0.92, 0.76, 1)
 robe = Color(0.28, 0.78, 0.4, 1)
 cape = Color(0.62, 0.95, 0.82, 1)
 basic = ExtResource("2_basic")
-abilities = [ExtResource("3_bomb"), ExtResource("4_glide"), ExtResource("5_breeze")]
+abilities = [ExtResource("3_bomb"), ExtResource("4_glide"), ExtResource("5_breeze"), ExtResource("6_updraft"), ExtResource("7_tornado")]

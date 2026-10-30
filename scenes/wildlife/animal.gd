@@ -12,12 +12,15 @@ const SENSE_EVERY := 0.2
 const LOD_RADIUS := 170.0  # farther than this from the hero an animal is frozen and hidden
 const LOD_EVERY := 0.7
 const GRAVITY := 24.0
+const LIFT_ACCEL := 60.0
+## How long a lift or a pull keeps hold after the last time it was applied.
+const CARRY_HOLD := 0.15
 const CORPSE_TIME := 90.0  # a corpse waits this long to be looted
 const LOOT_PROMPT_RANGE := 6.0
 ## Animations that play once; everything else loops.
 const ONE_SHOT_ROLES := ["attack", "land", "leap", "eat_start", "eat_end"]
 ## A species without an animation for a role uses this one instead (walking is a slow run...).
-const FALLBACKS := {"walk": "run", "look": "idle", "eat": "idle", "swim": "walk", "swim_idle": "idle", "swim_flee": "run"}
+const FALLBACKS := {"air": "run", "walk": "run", "look": "idle", "eat": "idle", "swim": "walk", "swim_idle": "idle", "swim_flee": "run"}
 
 static var _fur: StandardMaterial3D
 
@@ -44,6 +47,11 @@ var _alerted := 0.0  # seconds left of being on alert after noticing the hero
 var _provoked := 0.0  # seconds left of being afraid or angry after being hurt
 var _threat := Vector3.ZERO  # where the hero was last seen or heard
 var _knock := Vector3.ZERO
+var _lift_speed := 0.0
+var _lift_left := 0.0
+var _pull := Vector3.ZERO
+var _pull_left := 0.0
+var _air_speed := 0.0  # how fast it was falling a moment ago
 var _plate := Nameplate.new()
 var _loot: Array[Dictionary] = []  # {"item": String, "count": int}
 var _corpse: Tween
@@ -93,10 +101,73 @@ func _physics_process(delta: float) -> void:
 	_alerted = maxf(_alerted - delta, 0.0)
 	_provoked = maxf(_provoked - delta, 0.0)
 	_knock = _knock.move_toward(Vector3.ZERO, 25.0 * delta)
+	_track_landing()
+	if _carried(delta):
+		return
 	if health.is_stunned():
 		_stunned(delta)
 		return
 	_think(delta)
+
+
+## Only creatures that walk can be lifted, pulled or hurt by a fall; fliers and perched birds have
+## their own ways of staying up.
+func _grounded_kind() -> bool:
+	return species.behavior == Species.Behavior.GROUND
+
+
+## Carries it upwards at [param speed] (m/s) while this keeps being called. It cannot act.
+func lift(speed: float) -> void:
+	if dead or not _grounded_kind():
+		return
+	_lift_speed = speed
+	_lift_left = CARRY_HOLD
+
+
+## Drags it along at [param wanted] (m/s, sideways) while this keeps being called. It cannot act.
+func pull(wanted: Vector3) -> void:
+	if dead or not _grounded_kind():
+		return
+	_pull = wanted
+	_pull_left = CARRY_HOLD
+
+
+## Whether something is lifting or pulling it; if so it is moved here instead of thinking.
+func _carried(delta: float) -> bool:
+	_lift_left = maxf(_lift_left - delta, 0.0)
+	_pull_left = maxf(_pull_left - delta, 0.0)
+	if _lift_left <= 0.0 and _pull_left <= 0.0:
+		return false
+	var flat := _pull if _pull_left > 0.0 else Vector3.ZERO
+	velocity.x = flat.x + _knock.x
+	velocity.z = flat.z + _knock.z
+	if _lift_left > 0.0:
+		velocity.y = move_toward(velocity.y, _lift_speed, LIFT_ACCEL * delta)
+	else:
+		velocity.y = 0.0 if is_on_floor() else velocity.y - GRAVITY * delta
+	move_and_slide()
+	play("air" if not is_on_floor() else "run")
+	return true
+
+
+## Remembers how fast it is falling, and when it touches down lets [Health] work out the hurt.
+func _track_landing() -> void:
+	if not _grounded_kind():
+		return
+	if not is_on_floor():
+		_air_speed = maxf(-velocity.y, 0.0)
+		return
+	if _air_speed <= 0.0:
+		return
+	var damage := health.land(_air_speed)
+	_air_speed = 0.0
+	if damage > 0.0:
+		_landed(damage)
+
+
+## Hook for subclasses: it landed hard enough to be hurt.
+func _landed(_damage: float) -> void:
+	pass
 
 
 ## One tick of behavior. Subclasses move the animal here.

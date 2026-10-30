@@ -60,12 +60,19 @@ const LOOPED_ANIMS := [ANIM_WALK, ANIM_CROUCH, ANIM_SNEAK, ANIM_BLOCK, ANIM_BACK
 const UPPER_ANIMS := [ANIM_BLOCK, ANIM_CHANNEL, ANIM_THROW]
 const LOWER_BONES := ["root", "hips", "upperleg", "lowerleg", "foot", "toes"]
 const UPPER_LIBRARY := &"Upper"
+const GLIDE_POSE := &"Glide"
 ## Playback speed of the sideways run while only walking.
 const STRAFE_WALK_SPEED := 0.7
 const BACKWARD_SPEED := 0.8
 ## Playback speed of the sideways and backwards steps while crouched, which there is no pose for.
 const CROUCH_STEP_SPEED := 0.55
 const ANIM_AIR := "Rig_Medium_MovementBasic/Jump_Idle"
+const ANIM_LAND := "Rig_Medium_MovementBasic/Jump_Land"
+## Landing at least this fast (m/s) makes the hero crouch for a moment, hurt or not.
+const HARD_LANDING := 12.0
+const LANDING_TIME := 0.4
+## How hard an updraft pushes the hero upwards (m/s^2).
+const LIFT_ACCEL := 70.0
 
 signal stamina_changed(value: float, maximum: float, exhausted: bool)
 signal mana_changed(value: float, maximum: float)
@@ -175,6 +182,8 @@ var glow_sources := 0
 var gliding := false
 ## Seconds left of the breeze cloak: quiet footsteps and a faster walk.
 var breeze_left := 0.0
+var _air_speed := 0.0  # how fast the hero was falling a moment ago
+var _landing_left := 0.0
 var _shove := Vector3.ZERO  # sideways speed from shoves; fades, and adds to walking
 var _lean := 0.0
 var _dash_from := Vector3.ZERO
@@ -236,6 +245,8 @@ func _build_upper_layer() -> void:
 	var library := AnimationLibrary.new()
 	for path: String in UPPER_ANIMS:
 		library.add_animation(_upper_name(path), _upper_clip(anim.get_animation(path)))
+	var skeleton: Skeleton3D = model.find_child("Skeleton3D", true, false)
+	library.add_animation(GLIDE_POSE, GlidePose.build(skeleton, str(model.get_path_to(skeleton))))
 	_upper.add_animation_library(UPPER_LIBRARY, library)
 	add_child(_upper)
 
@@ -581,6 +592,8 @@ func _physics_process(delta: float) -> void:
 	if dashing:
 		_step_dash(delta)
 		return
+	_landing_left = maxf(_landing_left - delta, 0.0)
+	_track_landing()
 	if gliding and is_on_floor():
 		gliding = false
 	if gliding:
@@ -676,6 +689,8 @@ func _update_stamina(delta: float, moving: bool) -> void:
 func _move_speed() -> float:
 	if gliding:
 		return GLIDE_SPEED
+	if _landing_left > 0.0:
+		return speed * 0.5
 	# Stance and activity stack: crouching while casting is slower than either alone.
 	var factor := 1.0
 	factor *= BREEZE_SPEED if breeze_left > 0.0 else 1.0
@@ -812,6 +827,29 @@ func _fade_shove(delta: float) -> void:
 		_shove = _shove.slide(get_wall_normal())
 
 
+## Remembers how fast the hero is falling and, on touching down, lets [Health] work out the hurt
+## and plays a crouch for a hard landing.
+func _track_landing() -> void:
+	if not is_on_floor():
+		_air_speed = maxf(-velocity.y, 0.0)
+		return
+	if _air_speed <= 0.0:
+		return
+	var speed := _air_speed
+	_air_speed = 0.0
+	var hurt := health.land(speed)
+	if speed < HARD_LANDING and hurt <= 0.0:
+		return
+	_landing_left = LANDING_TIME
+	anim.play(ANIM_LAND, 0.05, 1.6)
+	_shake = maxf(_shake, minf(speed * 0.01, 0.25))
+
+
+## An updraft carries the hero up: speeds up towards [param speed] (m/s) at [constant LIFT_ACCEL].
+func lift(delta: float, speed: float) -> void:
+	velocity.y = move_toward(velocity.y, speed, LIFT_ACCEL * delta)
+
+
 ## Starts a glide: only in the air, and held until [method end_glide]. False if the hero is on
 ## the ground or busy.
 func begin_glide() -> bool:
@@ -903,6 +941,8 @@ func _update_animation() -> void:
 ## Locomotion for the whole body. While aiming the hero faces the camera, so moving sideways or
 ## backwards needs its own steps.
 func _update_legs() -> void:
+	if _landing_left > 0.0:
+		return  # the landing crouch is playing
 	var moving := Vector2(velocity.x, velocity.z).length() > 0.1
 	var target := _locomotion(moving)
 	anim.speed_scale = _locomotion_speed(target)
@@ -949,8 +989,17 @@ func _update_upper() -> void:
 	if blocking:
 		_hold_guard()
 		return
+	if gliding:
+		_hold_glide()
+		return
 	if _upper.current_animation != "":
 		_upper.stop()
+
+
+func _hold_glide() -> void:
+	if _upper.is_playing() and _upper.current_animation.ends_with(GLIDE_POSE):
+		return
+	_upper.play("%s/%s" % [UPPER_LIBRARY, GLIDE_POSE], 0.25)
 
 
 func _hold_guard() -> void:

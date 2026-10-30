@@ -19,6 +19,9 @@ const BURN_TICK := 0.5
 const CURSE_TICK := 0.5
 const WET_TIME := 4.0  # how long a soaking lasts after the last jet
 const STUN_BONUS := 0.25  # extra damage from other elements while stunned
+## Landing faster than this (m/s) hurts, by [constant FALL_DAMAGE] for every m/s over.
+const FALL_SAFE := 15.0
+const FALL_DAMAGE := 4.0
 
 @export var maximum := 100.0
 ## Height above the owner's origin that homing attacks aim at.
@@ -125,6 +128,17 @@ func _tick_slow(delta: float) -> void:
 ## Share of normal speed the owner moves at, for whatever drives its movement to multiply by.
 func speed_factor() -> float:
 	return _slow_factor
+
+
+## The owner touched the ground at [param speed] (m/s) after falling. Hurts if it was too fast;
+## returns the damage done.
+func land(speed: float) -> float:
+	var over := speed - FALL_SAFE
+	if over <= 0.0 or not is_alive():
+		return 0.0
+	var amount := over * FALL_DAMAGE
+	take_damage(amount)
+	return amount
 
 
 ## Restores up to [param amount] hit points.

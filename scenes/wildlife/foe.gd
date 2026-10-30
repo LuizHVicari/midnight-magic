@@ -22,6 +22,7 @@ const ANIMATIONS := {
 	"idle": "Rig_Medium_General/Idle_A",
 	"look": "Rig_Medium_General/Idle_B",
 	"hit": "Rig_Medium_General/Hit_A",
+	"air": "Rig_Medium_MovementBasic/Jump_Idle",
 	"walk": "Rig_Medium_MovementBasic/Walking_A",
 	"run": "Rig_Medium_MovementBasic/Running_A",
 	"sit": "Rig_Medium_Simulation/Sit_Floor_Idle",
@@ -29,7 +30,7 @@ const ANIMATIONS := {
 	"block": "Rig_Medium_CombatMelee/Melee_Blocking",
 	"aim": "Rig_Medium_CombatRanged/Ranged_Bow_Aiming_Idle",
 }
-const LOOPING := ["idle", "look", "walk", "run", "sit", "block", "aim"]
+const LOOPING := ["idle", "look", "walk", "run", "sit", "block", "aim", "air"]
 const LIBRARIES := {
 	"Rig_Medium_General": "res://assets/animations/Rig_Medium_General.glb",
 	"Rig_Medium_MovementBasic": "res://assets/animations/Rig_Medium_MovementBasic.glb",
@@ -46,6 +47,7 @@ const DECAY := 0.16  # awareness lost per second when it senses nothing
 const NOTICE_SPEED := 0.5  # scales every awareness gain: lower is more forgiving to sneakers
 const LOSE_TIME := 5.0  # seconds without sensing you before it stops chasing
 const STAGGER_TIME := 0.4
+const LANDING_STAGGER := 0.8
 const STAGGER_IMMUNE := 1.5
 const LOOKAHEAD := 1.6
 ## Melee foes sprint in from afar so a hero cannot simply shoot them down while they walk up.
@@ -490,6 +492,12 @@ func blind(seconds: float) -> void:
 		return
 	_blind_left = maxf(_blind_left, seconds)
 	_update_mark()
+
+
+## A hard landing leaves it winded for a moment.
+func _landed(_damage: float) -> void:
+	_stagger = LANDING_STAGGER
+	_animation_player.play(_animations["hit"], 0.05)
 
 
 func is_blind() -> bool:

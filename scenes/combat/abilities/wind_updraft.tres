@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Ability" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/combat/ability.gd" id="1_ability"]
+[ext_resource type="Script" path="res://scenes/combat/wind_updraft_action.gd" id="2_action"]
+
+[resource]
+script = ExtResource("1_ability")
+display_name = "Updraft"
+description = "A column of rising air where you aim. Everything that walks and stands in it is carried up: a lift for you and a launch pad for gliding, and a way to throw foes into the air to fall back hurt."
+cost = 25.0
+cooldown = 12.0
+action_script = ExtResource("2_action")
