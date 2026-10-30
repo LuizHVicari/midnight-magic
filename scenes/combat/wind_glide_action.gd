@@ -7,11 +7,16 @@ extends AbilityAction
 const DRAIN := 4.0  # mana per second
 
 var _trail: GPUParticles3D
+var _stars: GPUParticles3D
 
 
 func _ready() -> void:
 	_trail = _make_trail()
 	add_child(_trail)
+	_stars = Vfx.sparkles(0.5, 0.8, 50, 0.9, 0.22, Color(0.6, 1.0, 0.85), 0.3)
+	_stars.emitting = false
+	_stars.top_level = true
+	add_child(_stars)
 
 
 func _cast() -> bool:
@@ -25,6 +30,8 @@ func release() -> void:
 func _update(delta: float) -> void:
 	_trail.global_position = caster.global_position + Vector3.UP * 1.0
 	_trail.emitting = caster.gliding
+	_stars.global_position = caster.global_position + Vector3.UP * 0.3
+	_stars.emitting = caster.gliding
 	if caster.gliding and not caster.spend_mana(DRAIN * delta):
 		caster.end_glide()
 

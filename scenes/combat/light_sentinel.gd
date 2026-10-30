@@ -22,6 +22,8 @@ var _orb := MeshInstance3D.new()
 var _orb_material := StandardMaterial3D.new()
 var _light := OmniLight3D.new()
 var _bob := randf() * TAU
+var _star := MeshInstance3D.new()  # a slowly turning four-point star behind the orb
+var _ring := Node3D.new()  # tiny motes circling it
 
 
 func _ready() -> void:
@@ -45,6 +47,23 @@ func _ready() -> void:
 	(halo.material as StandardMaterial3D).billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	halo_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(halo_node)
+
+	# A four-point star that pulses behind the orb, and glints circling and trailing it.
+	var star := Vfx.star_quad(1.9)
+	(star.material as StandardMaterial3D).albedo_color = Color(1.0, 0.9, 0.55)
+	(star.material as StandardMaterial3D).billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	_star.mesh = star
+	_star.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_star)
+	var motes: Array[Color] = [Color(1.0, 0.95, 0.7) * 1.6, Color(1.0, 0.8, 0.35) * 1.6]
+	_ring = Vfx.orbiters(9, Vector2(0.45, 0.8), Vector2(-0.35, 0.35), motes, Vector2(0.03, 0.06), false, 5)
+	add_child(_ring)
+	var glints := Vfx.sparkles(0.35, 0.3, 36, 1.2, 0.2, Color(1.0, 0.85, 0.4), 0.6)
+	add_child(glints)
+	var wake := Vfx.particles(_wake(), Vfx.soft_quad(0.3), 40, 0.9)
+	wake.local_coords = false
+	wake.emitting = true
+	add_child(wake)
 
 	_light.light_color = GLOW_COLOR
 	_light.omni_range = 15.0
@@ -75,9 +94,29 @@ func _process(delta: float) -> void:
 	scale = Vector3.ONE * size
 	global_position = global_position.lerp(_home(), 1.0 - exp(-FOLLOW * delta))
 	_light.light_energy = 1.1 * randf_range(0.9, 1.0)
+	_ring.rotate_y(2.2 * delta)
+	_ring.rotate_x(0.9 * delta)
+	_star.scale = Vector3.ONE * (1.0 + sin(_age * 3.1 + _bob) * 0.18)
 	_wait -= delta
 	if _wait <= 0.0:
 		_fire()
+
+
+## A thin drift of golden dust left behind as the orb moves.
+func _wake() -> ParticleProcessMaterial:
+	var process := ParticleProcessMaterial.new()
+	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	process.emission_sphere_radius = 0.15
+	process.direction = Vector3.UP
+	process.spread = 180.0
+	process.initial_velocity_min = 0.1
+	process.initial_velocity_max = 0.5
+	process.gravity = Vector3(0.0, -0.3, 0.0)
+	process.scale_min = 0.4
+	process.scale_max = 1.0
+	process.scale_curve = Vfx.puff_curve()
+	process.color_ramp = Vfx.ramp([Color(1.0, 0.95, 0.7) * 1.5, Color(1.0, 0.75, 0.3), Color(0, 0, 0, 1)])
+	return process
 
 
 ## Above the hero's left shoulder as the camera sees it, bobbing a little.

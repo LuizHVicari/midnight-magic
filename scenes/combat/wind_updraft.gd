@@ -20,6 +20,7 @@ var caster: Player
 var _age := 0.0
 var _material := ShaderMaterial.new()
 var _ring: LightReticle
+var _leaves: Node3D
 
 
 func _ready() -> void:
@@ -49,6 +50,10 @@ func _ready() -> void:
 	_ring.set_radius(RADIUS)
 	add_child(_ring)
 	add_child(_flecks())
+	add_child(Vfx.sparkles(RADIUS * 0.95, 0.4, 90, 1.8, 0.26, MINT, 6.0))
+	var leaf_colors: Array[Color] = [Color(0.55, 0.85, 0.5), Color(0.85, 0.97, 0.8), Color(1, 1, 1)]
+	_leaves = Vfx.orbiters(22, Vector2(RADIUS * 0.4, RADIUS * 0.95), Vector2(0.5, HEIGHT - 1.0), leaf_colors, Vector2(0.08, 0.15), true, 41)
+	add_child(_leaves)
 	Vfx.sparks(get_parent(), global_position + Vector3.UP * 0.3, MINT, 14)
 
 
@@ -58,6 +63,7 @@ func _physics_process(delta: float) -> void:
 		queue_free()
 		return
 	_material.set_shader_parameter("fade", clampf((LIFETIME - _age) / FADE_TIME, 0.0, 1.0))
+	_leaves.rotate_y(3.2 * delta)
 	if _inside(caster.global_position + Vector3.UP):
 		caster.lift(delta, HERO_SPEED)
 	for health: Health in get_tree().get_nodes_in_group("damageable"):

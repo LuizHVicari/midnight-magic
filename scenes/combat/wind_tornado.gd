@@ -19,7 +19,7 @@ const TICK := 0.5
 const FADE_TIME := 1.0
 const SPIN := 4.5  # radians per second the debris circles
 const MINT := Color(0.7, 1.0, 0.88)
-const DEBRIS := 28
+const DEBRIS := 60
 
 var element: Element
 var caster: Player
@@ -55,6 +55,7 @@ func _ready() -> void:
 	add_child(body)
 	add_child(_debris)
 	_scatter_debris()
+	add_child(Vfx.sparkles(3.0, 0.5, 80, 1.6, 0.28, MINT, 3.0, 0.8))
 	Vfx.sparks(get_parent(), global_position + Vector3.UP * 0.3, MINT, 16)
 
 

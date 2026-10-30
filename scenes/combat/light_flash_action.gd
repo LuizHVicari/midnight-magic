@@ -58,6 +58,44 @@ func _facing_share(foe: Foe) -> float:
 	return BACK_TURNED if turned > deg_to_rad(100.0) else 1.0
 
 
+## A burst of twinkling stars thrown out in every direction, and a big four-point flare that
+## blooms and fades.
+func _stars(parent: Node, at: Vector3) -> void:
+	var process := ParticleProcessMaterial.new()
+	process.direction = Vector3.UP
+	process.spread = 180.0
+	process.initial_velocity_min = 5.0
+	process.initial_velocity_max = 15.0
+	process.damping_min = 4.0
+	process.damping_max = 7.0
+	process.gravity = Vector3.ZERO
+	process.scale_min = 0.6
+	process.scale_max = 1.5
+	process.scale_curve = Vfx.twinkle_curve()
+	process.color_ramp = Vfx.ramp([Color(1, 1, 1, 1) * 1.8, Color(LIGHT_COLOR * 1.8, 1.0), Color(element.color, 1.0), Color(0, 0, 0, 1)])
+	var burst := Vfx.particles(process, Vfx.star_quad(0.5), 70, 1.1)
+	burst.local_coords = false
+	burst.one_shot = true
+	burst.explosiveness = 1.0
+	burst.finished.connect(burst.queue_free)
+	parent.add_child(burst)
+	burst.global_position = at
+	burst.emitting = true
+	var star := Vfx.star_quad(7.0)
+	var material := star.material as StandardMaterial3D
+	material.albedo_color = Color(1.0, 0.95, 0.75) * 1.4
+	material.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	var flare := MeshInstance3D.new()
+	flare.mesh = star
+	flare.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	parent.add_child(flare)
+	flare.global_position = at
+	var tween := flare.create_tween().set_parallel()
+	tween.tween_property(flare, "scale", Vector3.ONE * 2.2, 0.5).from(Vector3.ONE * 0.3).set_ease(Tween.EASE_OUT)
+	tween.tween_property(material, "albedo_color", Color(0, 0, 0, 1), 0.5)
+	tween.chain().tween_callback(flare.queue_free)
+
+
 func _night() -> float:
 	var clock := caster.get_tree().get_first_node_in_group("day_night") as DayNight
 	return clock.night if clock != null else 0.0
@@ -69,6 +107,7 @@ func _show(at: Vector3) -> void:
 	var night := _night()
 	Vfx.flash(parent, at, LIGHT_COLOR, lerpf(7.0, 14.0, night), BLIND_RADIUS * lerpf(2.0, 4.0, night), 0.6)
 	Vfx.sparks(parent, at, element.color, 30)
+	_stars(parent, at)
 	var material := StandardMaterial3D.new()
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	material.blend_mode = BaseMaterial3D.BLEND_MODE_ADD

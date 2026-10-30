@@ -54,6 +54,111 @@ static func soft_quad(size: float) -> QuadMesh:
 	return quad
 
 
+static var _star: ImageTexture
+
+
+## A four-point star: a bright core with thin rays, black elsewhere. Drawn additively, so black is
+## clear: the twinkle of magic dust.
+static func star_texture() -> ImageTexture:
+	if _star == null:
+		var side := 64
+		var image := Image.create(side, side, false, Image.FORMAT_RGBA8)
+		for y in side:
+			for x in side:
+				var p := (Vector2(x, y) + Vector2.ONE * 0.5) / side * 2.0 - Vector2.ONE
+				var core := exp(-p.length_squared() * 20.0)
+				var rays := exp(-minf(absf(p.x), absf(p.y)) * 34.0) * clampf(1.0 - p.length(), 0.0, 1.0)
+				var v := clampf(core + rays * 0.85, 0.0, 1.0)
+				image.set_pixel(x, y, Color(v, v, v, 1.0))
+		_star = ImageTexture.create_from_image(image)
+	return _star
+
+
+## Quad showing [method star_texture], facing the camera, tinted by the particle's color.
+static func star_quad(size: float) -> QuadMesh:
+	var quad := glow_quad(size)
+	(quad.material as StandardMaterial3D).albedo_texture = star_texture()
+	return quad
+
+
+## Blinks in, brightens and dims a couple of times, then goes out.
+static func twinkle_curve() -> CurveTexture:
+	var curve := Curve.new()
+	curve.add_point(Vector2(0.0, 0.0))
+	curve.add_point(Vector2(0.22, 1.0))
+	curve.add_point(Vector2(0.5, 0.35))
+	curve.add_point(Vector2(0.75, 0.9))
+	curve.add_point(Vector2(1.0, 0.0))
+	var texture := CurveTexture.new()
+	texture.curve = curve
+	return texture
+
+
+## Twinkling stars rising from a ring on the ground, [param radius] wide (hollow inside
+## [param inner]) and [param height] tall to begin with. They drift up at about [param rise] m/s.
+## Left in world space, so they trail behind whatever carries them.
+static func sparkles(radius: float, height: float, amount: int, lifetime: float, size: float, tint: Color, rise := 1.0, inner := 0.0) -> GPUParticles3D:
+	var process := ParticleProcessMaterial.new()
+	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+	process.emission_ring_axis = Vector3.UP
+	process.emission_ring_radius = radius
+	process.emission_ring_inner_radius = inner
+	process.emission_ring_height = height
+	process.direction = Vector3.UP
+	process.spread = 18.0
+	process.initial_velocity_min = rise * 0.6
+	process.initial_velocity_max = rise * 1.3
+	process.gravity = Vector3.ZERO
+	process.scale_min = 0.5
+	process.scale_max = 1.2
+	process.scale_curve = twinkle_curve()
+	process.angular_velocity_min = -40.0
+	process.angular_velocity_max = 40.0
+	process.color_ramp = ramp([Color(1, 1, 1, 1) * 1.6, Color(tint * 1.8, 1.0), Color(tint, 1.0), Color(0, 0, 0, 1)])
+	var emitter := particles(process, star_quad(size), amount, lifetime)
+	emitter.local_coords = false
+	emitter.emitting = true
+	return emitter
+
+
+## Little bits circling an axis: [param count] of them between [param radii] from it and
+## [param heights] up, in the given colors. Flat leaf-like chips when [param flat], low-poly
+## beads otherwise. Turn the returned node to make them orbit.
+static func orbiters(count: int, radii: Vector2, heights: Vector2, colors: Array[Color], sizes: Vector2, flat := false, seed_value := 21) -> Node3D:
+	var pivot := Node3D.new()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	for i in count:
+		var material := StandardMaterial3D.new()
+		material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		material.albedo_color = colors[i % colors.size()]
+		var size := rng.randf_range(sizes.x, sizes.y)
+		var mesh: Mesh
+		if flat:
+			var chip := BoxMesh.new()
+			chip.size = Vector3(size * 1.6, size * 0.2, size)
+			chip.material = material
+			mesh = chip
+		else:
+			var bead := SphereMesh.new()
+			bead.radius = size
+			bead.height = size * 2.0
+			bead.radial_segments = 4
+			bead.rings = 2
+			bead.material = material
+			mesh = bead
+		var piece := MeshInstance3D.new()
+		piece.mesh = mesh
+		piece.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var turn := rng.randf() * TAU
+		var radius := rng.randf_range(radii.x, radii.y)
+		piece.position = Vector3(cos(turn) * radius, rng.randf_range(heights.x, heights.y), sin(turn) * radius)
+		piece.rotation = Vector3(rng.randf() * TAU, rng.randf() * TAU, rng.randf() * TAU)
+		pivot.add_child(piece)
+	return pivot
+
+
 ## Colors spread evenly over a particle's life.
 static func ramp(colors: Array[Color]) -> GradientTexture1D:
 	var gradient := Gradient.new()

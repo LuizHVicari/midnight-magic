@@ -14,6 +14,8 @@ const MAX_LIGHT := 3.2
 var _orb := MeshInstance3D.new()
 var _orb_material := StandardMaterial3D.new()
 var _motes: GPUParticles3D
+var _glints: GPUParticles3D
+var _star := MeshInstance3D.new()
 var _light := OmniLight3D.new()
 var _charge := 0.0
 
@@ -34,6 +36,16 @@ func _ready() -> void:
 
 	_motes = _make_motes()
 	add_child(_motes)
+	# Twinkling stars drifting in the gathering energy and a four-point flare on the ball.
+	_glints = Vfx.sparkles(1.4, 0.4, 60, 1.0, 0.26, GOLD, 0.5)
+	_glints.emitting = false
+	add_child(_glints)
+	var star := Vfx.star_quad(2.2)
+	(star.material as StandardMaterial3D).albedo_color = Color(1.0, 0.92, 0.6)
+	(star.material as StandardMaterial3D).billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	_star.mesh = star
+	_star.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_star)
 
 	_light.light_color = Color(1.0, 0.9, 0.6)
 	_light.omni_range = 9.0
@@ -53,6 +65,8 @@ func set_charge(value: float) -> void:
 	_light.light_energy = MAX_LIGHT * swell * randf_range(0.85, 1.0)
 	_motes.amount_ratio = clampf(0.15 + _charge, 0.0, 1.0)
 	_motes.emitting = _charge > 0.0
+	_glints.emitting = _charge > 0.1
+	_star.scale = Vector3.ONE * maxf(swell * (1.0 + 0.2 * sin(Time.get_ticks_msec() / 70.0)), 0.001)
 
 
 func _make_motes() -> GPUParticles3D:

@@ -46,6 +46,7 @@ func _ready() -> void:
 		embers.position = local_points[i] + Vector3.UP * 0.3
 		_visual.add_child(embers)
 		embers.emitting = true
+	_visual.add_child(_sparks(local_points))
 	for fraction in [0.0, 0.5, 1.0]:
 		var light := OmniLight3D.new()
 		light.light_color = Color(1.0, 0.5, 0.2)
@@ -58,6 +59,34 @@ func _ready() -> void:
 	tween.tween_interval(DURATION - GROW_TIME - DIE_TIME)
 	tween.tween_property(_visual, "scale", Vector3(1.0, 0.0, 1.0), DIE_TIME).set_ease(Tween.EASE_IN)
 	tween.tween_callback(queue_free)
+
+
+## Twinkling sparks lifting off the whole length of the wall.
+func _sparks(local_points: PackedVector3Array) -> GPUParticles3D:
+	var process := ParticleProcessMaterial.new()
+	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_POINTS
+	process.emission_point_texture = _point_texture(local_points)
+	process.emission_point_count = local_points.size()
+	process.direction = Vector3.UP
+	process.spread = 14.0
+	process.initial_velocity_min = 1.5
+	process.initial_velocity_max = 4.0
+	process.gravity = Vector3(0.0, 0.5, 0.0)
+	process.scale_min = 0.5
+	process.scale_max = 1.2
+	process.scale_curve = Vfx.twinkle_curve()
+	process.color_ramp = Vfx.ramp([Color(1, 1, 1, 1) * 1.6, FireVfx.HOT * 1.8, FireVfx.MID * 1.4, Color(0, 0, 0, 1)])
+	var emitter := Vfx.particles(process, Vfx.star_quad(0.3), 120, 1.5)
+	emitter.local_coords = true
+	emitter.emitting = true
+	return emitter
+
+
+func _point_texture(points: PackedVector3Array) -> ImageTexture:
+	var image := Image.create(points.size(), 1, false, Image.FORMAT_RGBF)
+	for i in points.size():
+		image.set_pixel(i, 0, Color(points[i].x, points[i].y + 0.3, points[i].z))
+	return ImageTexture.create_from_image(image)
 
 
 func _physics_process(delta: float) -> void:
