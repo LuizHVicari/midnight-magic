@@ -12,6 +12,7 @@ const ARCHER := preload("res://scenes/wildlife/species/archer.tres")
 const BRUTE := preload("res://scenes/wildlife/species/brute.tres")
 
 const RESTOCK_EVERY := 300.0
+const FLANK_ANGLE := deg_to_rad(55.0)
 const SAFE_DISTANCE := 90.0
 const CHECK_EVERY := 2.0
 const START := Vector2(0.0, 430.0)
@@ -32,11 +33,14 @@ static func for_position(at: Vector2) -> FoeCamp:
 	camp.tier = int(at.distance_to(START) / TIER_STEP)
 	camp.roster.append({"species": BANDIT, "resting": true})
 	camp.roster.append({"species": BANDIT, "resting": false})
+	camp.roster.append({"species": BANDIT, "resting": false})
 	camp.roster.append({"species": ARCHER, "resting": false})
+	camp.roster.append({"species": BRUTE, "resting": false})
 	if camp.tier >= 1:
-		camp.roster.append({"species": BRUTE, "resting": false})
+		camp.roster.append({"species": ARCHER, "resting": false})
 	if camp.tier >= 2:
 		camp.roster.append({"species": BANDIT, "resting": true})
+		camp.roster.append({"species": ARCHER, "resting": false})
 	return camp
 
 
@@ -70,10 +74,27 @@ func raise_alarm(source: Foe, at: Vector3) -> void:
 		if member == null or not is_instance_valid(member) or member == source or member.dead:
 			continue
 		var distance := member.global_position.distance_to(source.global_position)
-		if distance < Foe.ALARM_NEAR:
-			member.hear_alarm(at, 1.0)
-		elif distance < Foe.ALARM_FAR:
+		if distance < Foe.ALARM_FAR:
+			member.hear_alarm(at, 1.0, distance * Foe.ALARM_DELAY)
+		else:
 			member.hear_alarm(at, 0.7)
+
+
+## How far round the hero this foe should come in from, in radians off the straight line from
+## the hero to the camp. The heavy one goes straight in; the others take turns on either side.
+func flank_angle(member: Foe) -> float:
+	var fighters: Array[Foe] = []
+	for other in _slots:
+		if other != null and is_instance_valid(other) and other.is_fighting() and other.is_melee():
+			fighters.append(other)
+	fighters.sort_custom(func(a: Foe, b: Foe) -> bool:
+		if a.is_heavy() != b.is_heavy():
+			return a.is_heavy()
+		return _slots.find(a) < _slots.find(b))
+	var rank := fighters.find(member)
+	if rank <= 0:
+		return 0.0
+	return ceili(rank / 2.0) * FLANK_ANGLE * (1.0 if rank % 2 == 1 else -1.0)
 
 
 func living_count() -> int:

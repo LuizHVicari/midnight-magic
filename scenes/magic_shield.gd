@@ -7,6 +7,7 @@ extends MeshInstance3D
 const SHADER := preload("res://assets/shaders/magic_shield.gdshader")
 const SPARK_COLOR := Color(0.7, 0.3, 1.0)
 const STREAM_LIFETIME := 0.45
+const SHATTER_TIME := 0.5
 
 @export var diameter: float = 2.6
 @export var open_time: float = 0.18
@@ -17,6 +18,7 @@ var wand: Node3D
 
 var _material := ShaderMaterial.new()
 var _tween: Tween
+var _shattering := false
 var _twinkles: GPUParticles3D
 var _stream: GPUParticles3D
 var _wand_glow: GPUParticles3D
@@ -66,9 +68,54 @@ func raise() -> void:
 
 
 func lower() -> void:
+	if _shattering:
+		return
 	_set_emitting(false)
 	_animate(0.0, close_time, Tween.EASE_IN)
 	_tween.finished.connect(func() -> void: visible = false)
+
+
+## How battered the circle looks, 0 (whole) to 1 (about to break); cracks spread as it grows.
+func set_damage(share: float) -> void:
+	_material.set_shader_parameter("damage", clampf(share, 0.0, 1.0))
+
+
+## Breaks the circle apart: its cells drop away, the cracks flare and shards fly off.
+func shatter() -> void:
+	if _shattering or not visible:
+		return
+	_shattering = true
+	_set_emitting(false)
+	_burst_shards()
+	if _tween:
+		_tween.kill()
+	_tween = create_tween().set_parallel()
+	_tween.tween_method(_set_shatter, 0.0, 1.0, SHATTER_TIME)
+	_tween.tween_property(self, "scale", Vector3.ONE * 1.25, SHATTER_TIME)
+	_tween.chain().tween_callback(_finish_shatter)
+
+
+func _set_shatter(value: float) -> void:
+	_material.set_shader_parameter("shatter", value)
+
+
+func _finish_shatter() -> void:
+	_shattering = false
+	visible = false
+	scale = Vector3.ONE
+	_material.set_shader_parameter("shatter", 0.0)
+	_material.set_shader_parameter("fade", 0.0)
+	set_damage(0.0)
+
+
+func _burst_shards() -> void:
+	var shards := _make_shards()
+	shards.top_level = true
+	add_child(shards)
+	shards.global_position = global_position
+	shards.global_rotation = global_rotation
+	shards.emitting = true
+	get_tree().create_timer(shards.lifetime + 0.2).timeout.connect(shards.queue_free)
 
 
 func _set_emitting(on: bool) -> void:
@@ -230,6 +277,31 @@ func _make_stream() -> GPUParticles3D:
 	var particles := _particles(process, _trail_mesh(0.2, 0.7), 40, STREAM_LIFETIME)
 	particles.trail_enabled = true
 	particles.trail_lifetime = 0.3
+	particles.local_coords = false
+	return particles
+
+
+## One-shot burst of glowing splinters thrown out of the broken circle.
+func _make_shards() -> GPUParticles3D:
+	var process := ParticleProcessMaterial.new()
+	process.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_RING
+	process.emission_ring_axis = Vector3.BACK
+	process.emission_ring_radius = diameter * 0.45
+	process.emission_ring_inner_radius = 0.0
+	process.emission_ring_height = 0.05
+	process.direction = Vector3.BACK
+	process.spread = 180.0
+	process.flatness = 0.4
+	process.initial_velocity_min = 1.5
+	process.initial_velocity_max = 5.0
+	process.gravity = Vector3(0.0, -6.0, 0.0)
+	process.scale_min = 0.5
+	process.scale_max = 1.4
+	process.scale_curve = _twinkle()
+	process.color_ramp = _color_ramp(3.0)
+	var particles := _particles(process, _flare_mesh(), 46, 0.8)
+	particles.one_shot = true
+	particles.explosiveness = 1.0
 	particles.local_coords = false
 	return particles
 

@@ -48,8 +48,14 @@ const LOSE_TIME := 5.0  # seconds without sensing you before it stops chasing
 const STAGGER_TIME := 0.4
 const STAGGER_IMMUNE := 1.5
 const LOOKAHEAD := 1.6
+## Melee foes sprint in from afar so a hero cannot simply shoot them down while they walk up.
+const CHARGE_BONUS := 0.3
+const CHARGE_FROM := 8.0
 const ALARM_NEAR := 18.0
 const ALARM_FAR := 35.0
+const FLANK_SWEEP := 0.5  # share of its distance to the hero it aims to the side by
+const FLANK_WIDE := 7.0
+const ALARM_DELAY := 0.04  # seconds of reaction per meter between the shouter and the one who hears
 const HEALTH_PER_LEVEL := 0.22
 const DAMAGE_PER_LEVEL := 0.12
 const REWARD_PER_LEVEL := 0.2
@@ -80,7 +86,7 @@ var _struck := false
 var _stagger := 0.0
 var _stagger_immune := 0.0
 var _alarmed := false
-var _mark := Label3D.new()
+var _mark := AlertMark.new()
 
 
 func _ready() -> void:
@@ -170,13 +176,7 @@ func _guard(amount: float, _element: Element, from: Vector3) -> float:
 
 
 func _build_mark() -> void:
-	_mark.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_mark.font_size = 120
-	_mark.pixel_size = 0.006
-	_mark.outline_size = 18
-	_mark.outline_modulate = Color(0.1, 0.05, 0.12)
-	_mark.position.y = species.body_height + 1.55
-	_mark.visible = false
+	_mark.position.y = species.body_height + 1.8
 	add_child(_mark)
 
 
@@ -274,29 +274,38 @@ func _night_amount() -> float:
 	return clock.night if clock != null else 0.0
 
 
-## "?" grows and warms up as it gets suspicious; "!" when it fights.
+## The gauge over its head: fills as it gets suspicious, "!" when it fights.
 func _update_mark() -> void:
 	var fighting := state == State.ENGAGE or state == State.ATTACK
-	_mark.visible = not dead and (fighting or awareness >= 0.12)
-	if not _mark.visible:
+	if dead:
+		_mark.visible = false
 		return
-	if fighting:
-		_mark.text = "!"
-		_mark.modulate = Color(1.0, 0.3, 0.25)
-		_mark.scale = Vector3.ONE * 1.1
-		return
-	_mark.text = "?"
-	_mark.modulate = Color(1.0, 0.92, 0.45).lerp(Color(1.0, 0.55, 0.2), awareness)
-	_mark.modulate.a = clampf(awareness * 1.8, 0.0, 1.0)
-	_mark.scale = Vector3.ONE * (0.6 + awareness * 0.5)
+	_mark.show_level(awareness, fighting, hears_player and not sees_player)
 
 
-## A comrade raised the alarm: nearby ones come running, farther ones get suspicious.
-func hear_alarm(at: Vector3, strength: float) -> void:
+## A comrade raised the alarm: nearby ones come running, farther ones get suspicious. With a
+## [param delay] the news takes that long to sink in.
+func hear_alarm(at: Vector3, strength: float, delay := 0.0) -> void:
+	if delay > 0.0:
+		get_tree().create_timer(delay).timeout.connect(hear_alarm.bind(at, strength))
+		return
 	if dead or state == State.ENGAGE or state == State.ATTACK:
 		return
 	awareness = maxf(awareness, strength)
 	_last_known = at
+
+
+## Whether it is out fighting right now.
+func is_fighting() -> bool:
+	return not dead and (state == State.ENGAGE or state == State.ATTACK)
+
+
+func is_melee() -> bool:
+	return _foe.style != FoeSpecies.Style.ARCHER
+
+
+func is_heavy() -> bool:
+	return _foe.style == FoeSpecies.Style.HEAVY
 
 
 # --- behavior ------------------------------------------------------------------------------------
@@ -475,7 +484,8 @@ func _brawler(player: Player, delta: float) -> void:
 	var to := player.global_position - global_position
 	to.y = 0.0
 	if to.length() > _foe.reach * 0.85:
-		_walk_to(player.global_position, species.run_speed, delta, to.length() > 3.5)
+		var charge := 1.0 + (CHARGE_BONUS if to.length() > CHARGE_FROM else 0.0)
+		_walk_to(_flank_point(player), species.run_speed * charge, delta, to.length() > 3.5)
 		play("run")
 		return
 	_drive(Vector3.ZERO, 0.0, delta)
@@ -485,6 +495,22 @@ func _brawler(player: Player, delta: float) -> void:
 		return
 	if _facing().angle_to(to) < deg_to_rad(35.0):
 		_begin_blow(Blow.MELEE)
+
+
+## The spot beside the hero this foe heads for, so a group fans out and comes from several
+## sides instead of lining up behind one another.
+func _flank_point(player: Player) -> Vector3:
+	var away := Vector3.ZERO
+	if camp != null:
+		away = camp.global_position - player.global_position
+	away.y = 0.0
+	if away.length() < 0.1:
+		return player.global_position
+	var bearing := away.normalized().rotated(Vector3.UP, camp.flank_angle(self))
+	# Far off it aims wide of the hero and closes in as it gets near, so the group sweeps round.
+	var gap := global_position.distance_to(player.global_position)
+	var radius := clampf(gap * FLANK_SWEEP, _foe.reach * 0.75, FLANK_WIDE)
+	return player.global_position + bearing * radius
 
 
 ## Archers hold a distance: back off when you get close, stab if cornered, shoot when in range.

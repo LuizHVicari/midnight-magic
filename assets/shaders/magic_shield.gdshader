@@ -7,6 +7,11 @@ uniform vec3 color : source_color = vec3(0.62, 0.22, 1.0);
 uniform vec3 core_color : source_color = vec3(0.95, 0.75, 1.0);
 uniform float fade : hint_range(0.0, 1.0) = 1.0;
 uniform float glow = 2.2;
+// 0..1: how battered the circle is. Cracks spread over it cell by cell and the glow turns hot.
+uniform float damage : hint_range(0.0, 1.0) = 0.0;
+// 0..1: the circle breaking apart; its cells vanish one after another while the cracks blaze.
+uniform float shatter : hint_range(0.0, 1.0) = 0.0;
+uniform vec3 crack_color : source_color = vec3(1.0, 0.7, 0.75);
 
 float ring(float r, float radius, float width) {
 	return 1.0 - smoothstep(width * 0.4, width, abs(r - radius));
@@ -41,6 +46,38 @@ float polygon_star(vec2 p, float radius, float width) {
 float comet(float angle, float dir, float speed, float offset) {
 	float d = mod(dir * (offset + TIME * speed) - dir * angle, TAU);
 	return exp(-d * 2.6) * (1.0 - smoothstep(2.4, 3.0, d));
+}
+
+float cell_hash(vec2 cell) {
+	return fract(sin(dot(cell, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+vec2 cell_point(vec2 cell) {
+	return vec2(cell_hash(cell), cell_hash(cell + 17.0));
+}
+
+// Voronoi cells: x is the distance to the nearest point, y to the second nearest, z the nearest
+// cell's random number. Where x and y are close, a crack runs along the border between cells.
+vec3 cells(vec2 p) {
+	vec2 base = floor(p);
+	vec2 local = fract(p);
+	float nearest = 8.0;
+	float second = 8.0;
+	float id = 0.0;
+	for (int j = -1; j <= 1; j++) {
+		for (int i = -1; i <= 1; i++) {
+			vec2 offset = vec2(float(i), float(j));
+			float d = length(offset + cell_point(base + offset) - local);
+			if (d < nearest) {
+				second = nearest;
+				nearest = d;
+				id = cell_hash(base + offset);
+			} else if (d < second) {
+				second = d;
+			}
+		}
+	}
+	return vec3(nearest, second, id);
 }
 
 void fragment() {
@@ -78,5 +115,16 @@ void fragment() {
 	float pulse = 0.85 + 0.15 * sin(TIME * 3.0);
 	float intensity = (m * pulse + disc) * step(r, 1.0);
 
-	ALBEDO = mix(color, core_color, clamp(m - 0.6, 0.0, 1.0)) * glow * intensity * fade;
+	// Cracks: the more damage, the more cells show their borders; breaking blazes them.
+	vec3 c = cells(p * 3.2 + 4.0);
+	float border = 1.0 - smoothstep(0.0, 0.1, c.y - c.x);
+	float cracked = step(c.z, damage * 1.15);
+	float crack = border * cracked * step(r, 0.98);
+	float alive = step(shatter, c.z);  // cells with a low number fall away first
+	intensity *= alive;
+	crack *= mix(1.0, 3.0, sin(shatter * PI)) * alive;
+
+	vec3 base = mix(color, core_color, clamp(m - 0.6, 0.0, 1.0));
+	base = mix(base, vec3(1.0, 0.45, 0.4), damage * 0.5);
+	ALBEDO = (base * intensity + crack_color * crack) * glow * fade;
 }

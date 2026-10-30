@@ -63,6 +63,8 @@ signal stamina_changed(value: float, maximum: float, exhausted: bool)
 signal mana_changed(value: float, maximum: float)
 signal item_collected(item: String, count: int)
 signal leveled_up(level: int)
+## The guard circle broke; it can be raised again after [param cooldown] seconds.
+signal shield_broken(cooldown: float)
 
 const WAND_SCENE := preload("res://assets/models/kaykit/wand.gltf")
 const HAND_BONE := "handslot.r"
@@ -72,6 +74,12 @@ const LOOT_COLOR := Color(1.0, 0.82, 0.35)
 const XP_COLOR := Color(0.5, 0.9, 0.85)
 ## Share of the damage of a blocked hit that gets through.
 const BLOCK_TAKEN := 0.3
+## The guard circle holds this much damage before it breaks, then cannot be raised for a while.
+## It mends itself slowly once nothing has hit it for a few seconds.
+const SHIELD_MAX := 80.0
+const SHIELD_MEND := 8.0  # integrity per second
+const SHIELD_MEND_AFTER := 3.0
+const SHIELD_COOLDOWN := 8.0
 ## What each level adds to the hero.
 const LEVEL_HEALTH := 12.0
 const LEVEL_MANA := 8.0
@@ -131,6 +139,9 @@ var _last_forward_tap := -1000.0
 var _double_tap_sprint := false
 var target_zoom: float
 var _shield := MagicShield.new()
+var _shield_integrity := SHIELD_MAX
+var _shield_cooldown := 0.0
+var _since_shield_hit := 0.0
 ## Arms, torso and head of the guard and casts, drawn over [member anim].
 var _upper := AnimationPlayer.new()
 var _stand_height: float
@@ -235,7 +246,40 @@ func _soften_blocked_hits(amount: float, _element: Element, from: Vector3) -> fl
 	var forward := Vector3(-sin(camera_pivot.rotation.y), 0.0, -cos(camera_pivot.rotation.y))
 	var toward := from - global_position
 	toward.y = 0.0
-	return amount * BLOCK_TAKEN if forward.angle_to(toward) < deg_to_rad(75.0) else amount
+	if forward.angle_to(toward) >= deg_to_rad(75.0):
+		return amount
+	return _absorb(amount)
+
+
+## The circle takes the hit: the hero only feels a fraction of it, and whatever is more than the
+## circle had left gets through whole. Out of integrity, it shatters.
+func _absorb(amount: float) -> float:
+	var held := minf(amount, _shield_integrity)
+	_shield_integrity -= held
+	_since_shield_hit = 0.0
+	_shield.set_damage(1.0 - _shield_integrity / SHIELD_MAX)
+	if _shield_integrity <= 0.0:
+		_break_shield()
+	return held * BLOCK_TAKEN + (amount - held)
+
+
+func _break_shield() -> void:
+	_shield_cooldown = SHIELD_COOLDOWN
+	_shield.shatter()
+	shield_broken.emit(SHIELD_COOLDOWN)
+
+
+## Mends the circle while it is not being hit and counts the cooldown after it broke.
+func _tick_shield(delta: float) -> void:
+	_since_shield_hit += delta
+	if _shield_cooldown > 0.0:
+		_shield_cooldown = maxf(_shield_cooldown - delta, 0.0)
+		_shield_integrity = SHIELD_MAX if _shield_cooldown <= 0.0 else 0.0
+		return
+	if _since_shield_hit < SHIELD_MEND_AFTER or _shield_integrity >= SHIELD_MAX:
+		return
+	_shield_integrity = minf(_shield_integrity + SHIELD_MEND * delta, SHIELD_MAX)
+	_shield.set_damage(1.0 - _shield_integrity / SHIELD_MAX)
 
 
 # --- level, experience and coins ---------------------------------------------------------------
@@ -408,6 +452,7 @@ func _handle_zoom(event: InputEventMouseButton) -> void:
 func _process(delta: float) -> void:
 	_place_shield()
 	_apply_shake(delta)
+	_tick_shield(delta)
 	spring_arm.spring_length = lerpf(
 		spring_arm.spring_length,
 		target_zoom,
@@ -477,7 +522,7 @@ func _place_shield() -> void:
 
 func _update_stance() -> void:
 	var captured := Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
-	blocking = captured and not attacking and Input.is_action_pressed("block")
+	blocking = captured and not attacking and _shield_cooldown <= 0.0 and Input.is_action_pressed("block")
 	_set_crouching(Input.is_action_pressed("crouch"))
 	var wants_sprint := Input.is_action_pressed("sprint") or _double_tap_sprint
 	sprinting = wants_sprint and not crouching and not blocking and not attacking and not exhausted
