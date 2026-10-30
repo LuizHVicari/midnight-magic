@@ -10,10 +10,14 @@ extends Resource
 @export var cape := Color(0.8, 0.15, 0.5)
 ## Extra damage against soaked targets (0.5 = +50%): lets light conduct through water.
 @export var wet_bonus := 0.0
-@export var attack_script: GDScript
+## What the primary button does by default; any ability can be moved there instead.
+@export var basic: Ability
+## The spells of this element besides its basic attack, in the order the hero first gets them.
+@export var abilities: Array[Ability] = []
 
 
-func create_attack() -> SpellAttack:
-	var attack: SpellAttack = attack_script.new()
-	attack.element = self
-	return attack
+## Everything of this element the hero can equip: the basic attack first, then the rest.
+func spellbook() -> Array[Ability]:
+	var book: Array[Ability] = [basic]
+	book.append_array(abilities)
+	return book

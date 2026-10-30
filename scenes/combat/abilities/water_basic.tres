@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Ability" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/combat/ability.gd" id="1_ability"]
+[ext_resource type="Script" path="res://scenes/combat/water_attack.gd" id="2_action"]
+
+[resource]
+script = ExtResource("1_ability")
+display_name = "Water Jet"
+description = "A jet of water while the button is held. It soaks and slows what it hits, and grows harder the longer you hold."
+cost = 0.0
+cooldown = 0.0
+action_script = ExtResource("2_action")

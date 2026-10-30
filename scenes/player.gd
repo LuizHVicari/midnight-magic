@@ -72,6 +72,7 @@ signal mana_changed(value: float, maximum: float)
 signal item_collected(item: String, count: int)
 signal leveled_up(level: int)
 signal element_changed(element: Element)
+signal loadout_changed
 ## The guard circle broke; it can be raised again after [param cooldown] seconds.
 signal shield_broken(cooldown: float)
 
@@ -85,6 +86,9 @@ const XP_COLOR := Color(0.5, 0.9, 0.85)
 const BLOCK_TAKEN := 0.3
 ## The guard circle holds this much damage before it breaks, then cannot be raised for a while.
 ## It mends itself slowly once nothing has hit it for a few seconds.
+## Quick slots: the primary button first, then the four ability keys. Any ability of the equipped
+## element can sit in any of them.
+const SLOT_ACTIONS: Array[String] = ["attack", "ability_1", "ability_2", "ability_3", "ability_4", "ability_5"]
 const SHIELD_MAX := 80.0
 const SHIELD_MEND := 8.0  # integrity per second
 const SHIELD_MEND_AFTER := 3.0
@@ -144,9 +148,20 @@ var _hold_at := 0.0  # animation position where the cast pose freezes; 0 = never
 var _hand: Node3D
 var elements: Array[Element] = []
 var current_element: Element
-var _attacks: Array[SpellAttack] = []
 var _element_index := 0
-var _pressed_attack: SpellAttack
+var _pressed_ability: SpellAttack
+## What is in the quick slots of each element: Element -> Array[Ability] (null = empty slot).
+var _loadouts := {}
+var _actions := {}  # Ability -> SpellAttack, made the first time it is used
+## True while the beam spell carries the hero along a path; nothing can hurt or steer them.
+var dashing := false
+## How many lights of the hero's own (like the sentinel orb) are burning; they make the hero
+## easier for foes to notice.
+var glow_sources := 0
+var _dash_from := Vector3.ZERO
+var _dash_to := Vector3.ZERO
+var _dash_time := 0.1
+var _dash_clock := 0.0
 var _outfit := HeroOutfit.new()
 var _last_forward_tap := -1000.0
 var _double_tap_sprint := false
@@ -181,10 +196,10 @@ func _ready() -> void:
 	_setup_progress()
 	for path in element_paths:
 		elements.append(load(path) as Element)
-	for each in elements:
-		_attacks.append(_equip_spell(each))
 	_outfit.setup(model)
+	_build_loadouts()
 	_select_element(0)
+	$Hud.show_abilities(self)
 	for anim_name in LOOPED_ANIMS:
 		anim.get_animation(anim_name).loop_mode = Animation.LOOP_LINEAR
 	floor_snap_length = 0.4  # stick to the ground when walking down banks and steps
@@ -263,6 +278,8 @@ func _apply_shake(delta: float) -> void:
 
 ## Hits from the front while the guard is up land for a fraction of their damage.
 func _soften_blocked_hits(amount: float, _element: Element, from: Vector3) -> float:
+	if dashing:
+		return 0.0
 	if not blocking or from == Vector3.INF:
 		return amount
 	var forward := Vector3(-sin(camera_pivot.rotation.y), 0.0, -cos(camera_pivot.rotation.y))
@@ -384,9 +401,10 @@ func cover_points() -> PackedVector3Array:
 
 ## How easy the hero is to spot: crouching hides, running stands out.
 func visibility_factor() -> float:
+	var glow := 1.3 if glow_sources > 0 else 1.0
 	if crouching:
-		return 0.55
-	return 1.2 if sprinting else 1.0
+		return 0.55 * glow
+	return (1.2 if sprinting else 1.0) * glow
 
 
 func _equip_wand() -> void:
@@ -417,10 +435,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_released("move_forward"):
 		_double_tap_sprint = false
 
-	_forward_cast_button(event)
+	_forward_ability_keys(event)
 	if event.is_action_pressed("switch_element"):
 		switch_element(1)
-	_pick_element_by_key(event)
 	if event.is_action_pressed("interact") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		_interact()
 
@@ -430,30 +447,62 @@ func _unhandled_input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
-## Presses only count while the mouse is captured; releases always do, so a held spell never sticks.
-## The release goes to the spell that was started, whatever is equipped by then.
-func _forward_cast_button(event: InputEvent) -> void:
-	if event.is_action_released("attack") and _pressed_attack != null:
-		_pressed_attack.release()
-		_pressed_attack = null
-	if event.is_action_pressed("attack") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
-		_pressed_attack = _attacks[_element_index]
-		_pressed_attack.begin()
+## The quick-slot buttons fire the ability in their slot, for the equipped element. Presses only
+## count while the mouse is captured; releases always do, so a held spell never sticks. The
+## release goes to the spell that was started, whatever is equipped by then.
+func _forward_ability_keys(event: InputEvent) -> void:
+	for slot in SLOT_ACTIONS.size():
+		var action := SLOT_ACTIONS[slot]
+		if event.is_action_released(action) and _pressed_ability != null:
+			_pressed_ability.release()
+			_pressed_ability = null
+		if event.is_action_pressed(action) and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+			_use_slot(slot)
 
 
-## Number keys pick an element straight away: 1 is the first, 2 the second...
-func _pick_element_by_key(event: InputEvent) -> void:
-	var key := event as InputEventKey
-	if key == null or not key.pressed or key.echo:
+func _use_slot(slot: int) -> void:
+	var ability := slot_ability(slot)
+	if ability == null or dashing:
 		return
-	var slot := key.keycode - KEY_1
-	if slot >= 0 and slot < elements.size():
-		switch_element(slot - _element_index)
+	_pressed_ability = _action_for(ability)
+	_pressed_ability.begin()
+
+
+## The ability in a quick slot of the equipped element, or null if it is empty.
+func slot_ability(slot: int) -> Ability:
+	var slots: Array = _loadouts[current_element]
+	return slots[slot]
+
+
+## The running action of an ability, for reading its cooldown. Null if it was never used.
+func ability_action(ability: Ability) -> SpellAttack:
+	return _actions.get(ability)
+
+
+func _action_for(ability: Ability) -> SpellAttack:
+	if not _actions.has(ability):
+		var action := ability.create_action(current_element)
+		action.caster = self
+		add_child(action)
+		_actions[ability] = action
+	return _actions[ability]
+
+
+## Every element starts with its basic attack on the primary button and its first abilities on
+## the keys, in order.
+func _build_loadouts() -> void:
+	for each in elements:
+		var book := each.spellbook()
+		var slots: Array[Ability] = []
+		slots.resize(SLOT_ACTIONS.size())
+		for i in mini(SLOT_ACTIONS.size(), book.size()):
+			slots[i] = book[i]
+		_loadouts[each] = slots
 
 
 ## Moves [param step] places along the element list (wrapping). Not while a spell is being cast.
 func switch_element(step: int) -> void:
-	if attacking or step == 0:
+	if attacking or dashing or step == 0:
 		return
 	_select_element(posmod(_element_index + step, elements.size()))
 	DamagePopup.spawn(get_parent(), global_position + Vector3.UP * 3.3, current_element.display_name, current_element.color)
@@ -464,13 +513,6 @@ func _select_element(index: int) -> void:
 	current_element = elements[index]
 	_outfit.dress(current_element)
 	element_changed.emit(current_element)
-
-
-func _equip_spell(element: Element) -> SpellAttack:
-	var spell := element.create_attack()
-	spell.caster = self
-	add_child(spell)
-	return spell
 
 
 ## Loots the nearest corpse in reach, if there is one.
@@ -515,6 +557,9 @@ func _process(delta: float) -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if dashing:
+		_step_dash(delta)
+		return
 	if not is_on_floor():
 		var gravity := get_gravity() * gravity_scale
 		if velocity.y < 0.0:
@@ -679,7 +724,7 @@ func _update_mana(delta: float) -> void:
 ## With [param hold_at] the pose freezes at that point of the animation. Returns false while
 ## another cast or the guard is busy.
 func begin_cast(animation: String, lock := 0.0, speed := 1.0, hold_at := 0.0) -> bool:
-	if attacking or blocking:
+	if attacking or blocking or dashing:
 		return false
 	attacking = true
 	_double_tap_sprint = false
@@ -717,6 +762,42 @@ func _hold_pose() -> void:
 		return
 	_upper.pause()
 	_hold_at = 0.0
+
+
+## Carries the hero to [param to] (their feet) in [param time] seconds, unseen and untouchable on
+## the way. False if they are busy with something else.
+func begin_dash(to: Vector3, time: float) -> bool:
+	if dashing or attacking:
+		return false
+	_dash_from = global_position
+	_dash_to = to
+	_dash_time = time
+	_dash_clock = 0.0
+	dashing = true
+	blocking = false
+	_double_tap_sprint = false
+	velocity = Vector3.ZERO
+	model.visible = false
+	return true
+
+
+## How far along its path the dash is, 0 to 1 (eased, so it matches where the hero really is).
+func dash_progress() -> float:
+	return _dash_ease(_dash_clock / _dash_time)
+
+
+func _dash_ease(share: float) -> float:
+	return 1.0 - pow(1.0 - clampf(share, 0.0, 1.0), 2.0)
+
+
+func _step_dash(delta: float) -> void:
+	_dash_clock += delta
+	global_position = _dash_from.lerp(_dash_to, dash_progress())
+	if _dash_clock < _dash_time:
+		return
+	dashing = false
+	model.visible = true
+	velocity = (_dash_to - _dash_from).normalized() * speed * 0.8
 
 
 ## Where the camera is looking: the first thing in the way, or far ahead if there is none.

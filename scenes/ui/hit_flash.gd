@@ -17,13 +17,19 @@ func _ready() -> void:
 	get_viewport().size_changed.connect(_fit)
 
 
-## Flashes at [param strength] (0..1) and fades back out.
-func pulse(strength: float) -> void:
+const RED := Color(0.7, 0.03, 0.05)
+
+
+## Flashes at [param strength] (0..1) and fades back out over [param time]. [param fill] 0 keeps
+## it to the edges of the screen, 1 covers all of it.
+func pulse(strength: float, color := RED, fill := 0.0, time := FADE_TIME) -> void:
 	if _tween:
 		_tween.kill()
+	_material.set_shader_parameter("color", Vector3(color.r, color.g, color.b))
+	_material.set_shader_parameter("fill", fill)
 	_material.set_shader_parameter("strength", clampf(strength, 0.0, 1.0))
 	_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	_tween.tween_method(_set_strength, clampf(strength, 0.0, 1.0), 0.0, FADE_TIME)
+	_tween.tween_method(_set_strength, clampf(strength, 0.0, 1.0), 0.0, time)
 
 
 func _set_strength(value: float) -> void:

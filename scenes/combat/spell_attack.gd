@@ -6,6 +6,9 @@ extends Node
 
 var element: Element
 var caster: Player
+var ability: Ability
+## Seconds left before it can be used again; basic attacks have none.
+var cooldown_left := 0.0
 
 
 ## Button pressed.

@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="Element" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scenes/combat/element.gd" id="1_element"]
-[ext_resource type="Script" path="res://scenes/combat/wind_attack.gd" id="2_attack"]
+[ext_resource type="Resource" path="res://scenes/combat/abilities/wind_basic.tres" id="2_basic"]
 
 [resource]
 script = ExtResource("1_element")
@@ -9,4 +9,4 @@ display_name = "Wind"
 color = Color(0.5, 0.92, 0.76, 1)
 robe = Color(0.28, 0.78, 0.4, 1)
 cape = Color(0.62, 0.95, 0.82, 1)
-attack_script = ExtResource("2_attack")
+basic = ExtResource("2_basic")

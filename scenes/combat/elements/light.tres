@@ -1,7 +1,15 @@
-[gd_resource type="Resource" script_class="Element" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="Element" load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scenes/combat/element.gd" id="1_element"]
-[ext_resource type="Script" path="res://scenes/combat/light_attack.gd" id="2_attack"]
+[ext_resource type="Resource" path="res://scenes/combat/abilities/light_basic.tres" id="2_basic"]
+
+[ext_resource type="Resource" path="res://scenes/combat/abilities/light_cannon.tres" id="3_cannon"]
+[ext_resource type="Resource" path="res://scenes/combat/abilities/light_beam.tres" id="4_beam"]
+
+[ext_resource type="Resource" path="res://scenes/combat/abilities/light_rain.tres" id="5_rain"]
+[ext_resource type="Resource" path="res://scenes/combat/abilities/light_orb.tres" id="6_orb"]
+
+[ext_resource type="Resource" path="res://scenes/combat/abilities/light_flash.tres" id="7_flash"]
 
 [resource]
 script = ExtResource("1_element")
@@ -10,4 +18,5 @@ color = Color(1, 0.8, 0.3, 1)
 robe = Color(1, 0.78, 0.25, 1)
 cape = Color(1, 0.95, 0.75, 1)
 wet_bonus = 0.5
-attack_script = ExtResource("2_attack")
+basic = ExtResource("2_basic")
+abilities = [ExtResource("3_cannon"), ExtResource("4_beam"), ExtResource("5_rain"), ExtResource("6_orb"), ExtResource("7_flash")]

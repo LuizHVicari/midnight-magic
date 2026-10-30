@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="Element" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scenes/combat/element.gd" id="1_element"]
-[ext_resource type="Script" path="res://scenes/combat/earth_attack.gd" id="2_attack"]
+[ext_resource type="Resource" path="res://scenes/combat/abilities/earth_basic.tres" id="2_basic"]
 
 [resource]
 script = ExtResource("1_element")
@@ -9,4 +9,4 @@ display_name = "Earth"
 color = Color(0.85, 0.55, 0.28, 1)
 robe = Color(0.5, 0.33, 0.18, 1)
 cape = Color(0.35, 0.42, 0.18, 1)
-attack_script = ExtResource("2_attack")
+basic = ExtResource("2_basic")

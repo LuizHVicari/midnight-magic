@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Ability" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/combat/ability.gd" id="1_ability"]
+[ext_resource type="Script" path="res://scenes/combat/light_beam_action.gd" id="2_action"]
+
+[resource]
+script = ExtResource("1_ability")
+display_name = "Light Beam"
+description = "Turn into a beam of light and shoot along your aim, hurting everything on the way. You cannot be hurt until you step out at the far end."
+cost = 15.0
+cooldown = 2.5
+action_script = ExtResource("2_action")

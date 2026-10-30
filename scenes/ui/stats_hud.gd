@@ -38,6 +38,13 @@ func add_bar(kind: StatBar.Kind, fade_when_full := false) -> StatBar:
 	return bar
 
 
+## The quick-slot bar for the hero's abilities, at the bottom of the screen.
+func show_abilities(player: Player) -> void:
+	var bar := AbilityBar.new()
+	bar.player = player
+	add_child(bar)
+
+
 ## The level, experience and coins panel under the bars; created on first use.
 func badge() -> ProgressBadge:
 	if _badge == null:
@@ -46,6 +53,7 @@ func badge() -> ProgressBadge:
 	return _badge
 
 
-## Flashes the screen edges red; [param strength] is 0..1.
-func flash(strength: float) -> void:
-	_flash.pulse(strength)
+## Flashes the screen edges red (or [param color]); [param strength] is 0..1. With [param fill]
+## at 1 the whole screen goes, for a flash of light.
+func flash(strength: float, color := HitFlash.RED, fill := 0.0, time := HitFlash.FADE_TIME) -> void:
+	_flash.pulse(strength, color, fill, time)

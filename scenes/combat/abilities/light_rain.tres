@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Ability" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/combat/ability.gd" id="1_ability"]
+[ext_resource type="Script" path="res://scenes/combat/light_rain_action.gd" id="2_action"]
+
+[resource]
+script = ExtResource("1_ability")
+display_name = "Lance Rain"
+description = "Hold to mark a circle of light where you aim. The longer you hold, the wider it grows and the more mana it drinks. Let go and lances rain down on it."
+cost = 10.0
+cooldown = 9.0
+action_script = ExtResource("2_action")

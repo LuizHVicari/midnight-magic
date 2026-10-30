@@ -86,6 +86,7 @@ var _struck := false
 var _stagger := 0.0
 var _stagger_immune := 0.0
 var _alarmed := false
+var _blind_left := 0.0
 var _mark := AlertMark.new()
 
 
@@ -213,6 +214,8 @@ func _sense() -> void:
 
 
 func _sight_gain(player: Player, to: Vector3) -> float:
+	if _blind_left > 0.0:
+		return 0.0
 	var sitting := state == State.REST
 	var range_now := _foe.sight_range * lerpf(1.0, 0.65, _night_amount()) * player.visibility_factor()
 	range_now *= 0.5 if sitting else 1.0
@@ -280,6 +283,9 @@ func _update_mark() -> void:
 	if dead:
 		_mark.visible = false
 		return
+	if _blind_left > 0.0:
+		_mark.show_level(0.55, false, false)  # a "?": it cannot see and does not know where you are
+		return
 	_mark.show_level(awareness, fighting, hears_player and not sees_player)
 
 
@@ -315,6 +321,7 @@ func _think(delta: float) -> void:
 	_attack_cd = maxf(_attack_cd - delta, 0.0)
 	_stagger = maxf(_stagger - delta, 0.0)
 	_stagger_immune = maxf(_stagger_immune - delta, 0.0)
+	_blind_left = maxf(_blind_left - delta, 0.0)
 	_heal(delta)
 	if _stagger > 0.0:
 		_drive(Vector3.ZERO, 0.0, delta)
@@ -467,10 +474,37 @@ func _engage_tick(delta: float) -> void:
 	if _lost_for > LOSE_TIME:
 		_give_up(State.SEARCH)
 		return
+	if _blind_left > 0.0:
+		_stumble(delta)
+		return
 	if _foe.style == FoeSpecies.Style.ARCHER:
 		_archer(player, delta)
 	else:
 		_brawler(player, delta)
+
+
+## Dazzled for [param seconds]: it sees nothing, so it stops aiming and heads for where it last
+## knew the hero was, feeling its way. Hearing still works.
+func blind(seconds: float) -> void:
+	if dead:
+		return
+	_blind_left = maxf(_blind_left, seconds)
+	_update_mark()
+
+
+func is_blind() -> bool:
+	return _blind_left > 0.0
+
+
+## Which way it is looking, flat.
+func facing() -> Vector3:
+	return _facing()
+
+
+func _stumble(delta: float) -> void:
+	_walk_to(_last_known, species.walk_speed, delta, true)
+	play("walk")
+	_update_mark()
 
 
 func _give_up(next: State) -> void:

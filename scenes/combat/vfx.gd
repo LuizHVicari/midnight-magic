@@ -34,6 +34,26 @@ static func glow_quad(size: float) -> QuadMesh:
 	return quad
 
 
+static var _soft: ImageTexture
+
+
+## Like [method glow_quad] but dark at the edge instead of clear: it fades out under additive
+## blending, which ignores the texture's alpha, so it stays round however big it is drawn.
+static func soft_quad(size: float) -> QuadMesh:
+	if _soft == null:
+		var side := 64
+		var image := Image.create(side, side, false, Image.FORMAT_RGBA8)
+		for y in side:
+			for x in side:
+				var p := (Vector2(x, y) + Vector2.ONE * 0.5) / side * 2.0 - Vector2.ONE
+				var v := pow(clampf(1.0 - p.length(), 0.0, 1.0), 1.6)
+				image.set_pixel(x, y, Color(v, v, v, 1.0))
+		_soft = ImageTexture.create_from_image(image)
+	var quad := glow_quad(size)
+	(quad.material as StandardMaterial3D).albedo_texture = _soft
+	return quad
+
+
 ## Colors spread evenly over a particle's life.
 static func ramp(colors: Array[Color]) -> GradientTexture1D:
 	var gradient := Gradient.new()
