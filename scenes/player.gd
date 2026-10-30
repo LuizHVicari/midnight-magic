@@ -5,6 +5,7 @@ extends CharacterBody3D
 @export var sprint_multiplier: float = 1.7
 @export var crouch_multiplier: float = 0.45
 @export var block_multiplier: float = 0.5
+@export var cast_multiplier: float = 0.7
 @export var crouch_height: float = 1.7
 @export var crouch_camera_drop: float = 0.5
 @export var max_stamina: float = 100.0
@@ -38,12 +39,24 @@ const ANIM_WALK := "Rig_Medium_MovementBasic/Walking_A"
 const ANIM_RUN := "Rig_Medium_MovementBasic/Running_A"
 const ANIM_CROUCH := "Rig_Medium_MovementAdvanced/Crouching"
 const ANIM_SNEAK := "Rig_Medium_MovementAdvanced/Sneaking"
+const ANIM_BACKWARD := "Rig_Medium_MovementAdvanced/Walking_Backwards"
+const ANIM_STRAFE_LEFT := "Rig_Medium_MovementAdvanced/Running_Strafe_Left"
+const ANIM_STRAFE_RIGHT := "Rig_Medium_MovementAdvanced/Running_Strafe_Right"
 const ANIM_BLOCK := "Rig_Medium_CombatMelee/Melee_Blocking"
 const ANIM_CHANNEL := "Rig_Medium_CombatRanged/Ranged_Magic_Raise"
 ## Second into the raise where the wand is up and steady; a held cast freezes there.
 const CHANNEL_HOLD := 1.1
 const ANIM_THROW := "Rig_Medium_General/Throw"
-const LOOPED_ANIMS := [ANIM_WALK, ANIM_CROUCH, ANIM_SNEAK, ANIM_BLOCK]
+const LOOPED_ANIMS := [ANIM_WALK, ANIM_CROUCH, ANIM_SNEAK, ANIM_BLOCK, ANIM_BACKWARD, ANIM_STRAFE_LEFT, ANIM_STRAFE_RIGHT]
+## Guard and casts play on their own layer with only these bones, so the legs keep walking.
+const UPPER_ANIMS := [ANIM_BLOCK, ANIM_CHANNEL, ANIM_THROW]
+const LOWER_BONES := ["root", "hips", "upperleg", "lowerleg", "foot", "toes"]
+const UPPER_LIBRARY := &"Upper"
+## Playback speed of the sideways run while only walking.
+const STRAFE_WALK_SPEED := 0.7
+const BACKWARD_SPEED := 0.8
+## Playback speed of the sideways and backwards steps while crouched, which there is no pose for.
+const CROUCH_STEP_SPEED := 0.55
 const ANIM_AIR := "Rig_Medium_MovementBasic/Jump_Idle"
 
 signal stamina_changed(value: float, maximum: float, exhausted: bool)
@@ -64,6 +77,12 @@ const LEVEL_HEALTH := 12.0
 const LEVEL_MANA := 8.0
 const LEVEL_STAMINA := 6.0
 const LEVEL_POWER := 0.08  # share of extra spell damage per level
+## Hits below this share of max health do not flash the screen or shake the camera (burn ticks).
+const HURT_MIN_SHARE := 0.03
+const HURT_FLASH := 5.0  # flash strength per share of max health lost
+const HURT_SHAKE := 2.2  # camera offset (m) per share of max health lost
+const HURT_SHAKE_MAX := 0.35
+const SHAKE_DECAY := 1.6
 ## How close the hero has to be to a corpse to loot it.
 const INTERACT_RANGE := 3.0
 const SHIELD_DISTANCE := 1.6
@@ -74,6 +93,7 @@ const DOUBLE_TAP_WINDOW := 0.3
 @onready var camera_pivot: Node3D = $CameraPivot
 @onready var spring_arm: SpringArm3D = $CameraPivot/SpringArm3D
 @onready var model: Node3D = $Model
+## Legs and idle poses: the body underneath everything else.
 @onready var anim: AnimationPlayer = $AnimationPlayer
 @onready var body_shape: CollisionShape3D = $CollisionShape3D
 @onready var camera: Camera3D = $CameraPivot/SpringArm3D/Camera3D
@@ -98,6 +118,7 @@ var inventory := {}  # item name -> count
 var level := 1
 var xp := 0
 var _since_hurt := 0.0
+var _shake := 0.0
 var _regen_timer := 0.0
 var _mana_timer := 0.0
 var _cast_anim := ""
@@ -110,6 +131,8 @@ var _last_forward_tap := -1000.0
 var _double_tap_sprint := false
 var target_zoom: float
 var _shield := MagicShield.new()
+## Arms, torso and head of the guard and casts, drawn over [member anim].
+var _upper := AnimationPlayer.new()
 var _stand_height: float
 var _stand_center_y: float
 var _pivot_rest_y: float
@@ -137,9 +160,42 @@ func _ready() -> void:
 	for anim_name in LOOPED_ANIMS:
 		anim.get_animation(anim_name).loop_mode = Animation.LOOP_LINEAR
 	floor_snap_length = 0.4  # stick to the ground when walking down banks and steps
-	anim.animation_finished.connect(_on_animation_finished)
+	_build_upper_layer()
+	_upper.animation_finished.connect(_on_animation_finished)
 	_equip_wand()
 	add_child(_shield)
+
+
+## Copies the guard and cast animations without their leg and hip tracks into a second player.
+## It sits after [member anim] in the tree, so while it plays it wins the bones they share.
+func _build_upper_layer() -> void:
+	_upper.name = "UpperBody"
+	_upper.root_node = anim.root_node
+	var library := AnimationLibrary.new()
+	for path: String in UPPER_ANIMS:
+		library.add_animation(_upper_name(path), _upper_clip(anim.get_animation(path)))
+	_upper.add_animation_library(UPPER_LIBRARY, library)
+	add_child(_upper)
+
+
+func _upper_clip(full: Animation) -> Animation:
+	var clip := full.duplicate() as Animation
+	for track in range(clip.get_track_count() - 1, -1, -1):
+		if _is_lower_bone(clip.track_get_path(track).get_concatenated_subnames()):
+			clip.remove_track(track)
+	return clip
+
+
+func _is_lower_bone(bone: String) -> bool:
+	return LOWER_BONES.any(func(part: String) -> bool: return bone.begins_with(part))
+
+
+func _upper_name(path: String) -> StringName:
+	return StringName(path.get_file())
+
+
+func _play_upper(path: String, blend := 0.1, speed := 1.0) -> void:
+	_upper.play("%s/%s" % [UPPER_LIBRARY, _upper_name(path)], blend, speed)
 
 
 func _build_health() -> void:
@@ -151,9 +207,25 @@ func _build_health() -> void:
 	add_child(health)
 	health.changed.connect($Hud.add_bar(StatBar.Kind.HEALTH).set_value)
 	health.changed.emit(health.value, health.maximum)
-	health.damaged.connect(func(_amount: float, _element: Element) -> void: _since_hurt = 0.0)
+	health.damaged.connect(_on_hurt)
 	health.pushed.connect(func(shove: Vector3) -> void: velocity += shove)
 	health.died.connect(_on_died)
+
+
+func _on_hurt(amount: float, _element: Element) -> void:
+	_since_hurt = 0.0
+	var share := amount / health.maximum
+	if share < HURT_MIN_SHARE:
+		return
+	$Hud.flash(share * HURT_FLASH)
+	_shake = maxf(_shake, minf(share * HURT_SHAKE, HURT_SHAKE_MAX))
+
+
+## Camera jolt from a hit: a quick random wobble that dies away.
+func _apply_shake(delta: float) -> void:
+	_shake = maxf(_shake - SHAKE_DECAY * delta, 0.0)
+	camera.h_offset = randf_range(-1.0, 1.0) * _shake
+	camera.v_offset = randf_range(-1.0, 1.0) * _shake
 
 
 ## Hits from the front while the guard is up land for a fraction of their damage.
@@ -335,6 +407,7 @@ func _handle_zoom(event: InputEventMouseButton) -> void:
 
 func _process(delta: float) -> void:
 	_place_shield()
+	_apply_shake(delta)
 	spring_arm.spring_length = lerpf(
 		spring_arm.spring_length,
 		target_zoom,
@@ -356,11 +429,8 @@ func _physics_process(delta: float) -> void:
 
 	_update_stance()
 
-	# There is no attack-while-moving animation, so a grounded attack roots the player. In the
-	# air the attack plays on top of the jump and movement carries on. Blocking roots too: the
-	# hero only turns towards the camera, never walks.
-	var rooted := (attacking or blocking) and is_on_floor()
-	var input_dir := Vector2.ZERO if rooted else Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	# Guard and casts only use the upper body, so the hero keeps walking (slower) through them.
+	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var yaw_basis := Basis(Vector3.UP, camera_pivot.rotation.y)
 	var direction := (yaw_basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
 
@@ -368,9 +438,10 @@ func _physics_process(delta: float) -> void:
 	if direction:
 		velocity.x = direction.x * move_speed
 		velocity.z = direction.z * move_speed
-		# Model's visual front is its local +Z (scene has it flipped 180 degrees)
+		# Model's visual front is its local +Z (scene has it flipped 180 degrees). Aiming keeps
+		# it facing the camera instead, and the legs walk backwards or sideways.
 		var target_yaw := atan2(direction.x, direction.z)
-		model.rotation.y = lerp_angle(model.rotation.y, target_yaw, turn_speed * delta)
+		_turn_towards_movement(target_yaw, delta)
 	else:
 		velocity.x = move_toward(velocity.x, 0.0, move_speed)
 		velocity.z = move_toward(velocity.z, 0.0, move_speed)
@@ -389,6 +460,12 @@ func _physics_process(delta: float) -> void:
 	_update_animation()
 
 
+func _turn_towards_movement(target_yaw: float, delta: float) -> void:
+	if blocking or attacking:
+		return
+	model.rotation.y = lerp_angle(model.rotation.y, target_yaw, turn_speed * delta)
+
+
 ## Holds the circle in front of the hero, facing along the camera.
 func _place_shield() -> void:
 	var yaw := camera_pivot.rotation.y
@@ -403,7 +480,7 @@ func _update_stance() -> void:
 	blocking = captured and not attacking and Input.is_action_pressed("block")
 	_set_crouching(Input.is_action_pressed("crouch"))
 	var wants_sprint := Input.is_action_pressed("sprint") or _double_tap_sprint
-	sprinting = wants_sprint and not crouching and not blocking and not exhausted
+	sprinting = wants_sprint and not crouching and not blocking and not attacking and not exhausted
 
 
 ## Sprinting drains stamina. After a short pause it comes back slowly while walking and fast
@@ -426,13 +503,13 @@ func _update_stamina(delta: float, moving: bool) -> void:
 
 
 func _move_speed() -> float:
-	if blocking:
-		return speed * block_multiplier
-	if crouching:
-		return speed * crouch_multiplier
-	if sprinting:
-		return speed * sprint_multiplier
-	return speed
+	# Stance and activity stack: crouching while casting is slower than either alone.
+	var factor := 1.0
+	factor *= crouch_multiplier if crouching else 1.0
+	factor *= block_multiplier if blocking else 1.0
+	factor *= cast_multiplier if attacking else 1.0
+	factor *= sprint_multiplier if sprinting else 1.0
+	return speed * factor
 
 
 ## Shrinks the body while crouched; stands back up only if there is headroom for it.
@@ -512,7 +589,7 @@ func begin_cast(animation: String, lock := 0.0, speed := 1.0, hold_at := 0.0) ->
 	_cast_anim = animation
 	_cast_lock = lock
 	_hold_at = hold_at
-	anim.play(animation, 0.1, speed)
+	_play_upper(animation, 0.1, speed)
 	return true
 
 
@@ -521,7 +598,7 @@ func release_cast(animation: String, lock: float, speed := 1.0) -> void:
 	_cast_anim = animation
 	_cast_lock = lock
 	_hold_at = 0.0
-	anim.play(animation, 0.08, speed)
+	_play_upper(animation, 0.08, speed)
 
 
 func end_cast() -> void:
@@ -539,9 +616,9 @@ func _tick_cast(delta: float) -> void:
 
 
 func _hold_pose() -> void:
-	if _hold_at <= 0.0 or not anim.is_playing() or anim.current_animation_position < _hold_at:
+	if _hold_at <= 0.0 or not _upper.is_playing() or _upper.current_animation_position < _hold_at:
 		return
-	anim.pause()
+	_upper.pause()
 	_hold_at = 0.0
 
 
@@ -564,25 +641,64 @@ func _on_animation_finished(anim_name: StringName) -> void:
 
 
 func _update_animation() -> void:
-	if attacking:
-		return
+	_update_legs()
+	_update_upper()
 
+
+## Locomotion for the whole body. While aiming the hero faces the camera, so moving sideways or
+## backwards needs its own steps.
+func _update_legs() -> void:
 	var moving := Vector2(velocity.x, velocity.z).length() > 0.1
-	var target: String
-	if blocking:
-		target = ANIM_BLOCK
-	elif not is_on_floor():
-		target = ANIM_AIR
-	elif moving and crouching:
-		target = ANIM_SNEAK
-	elif moving and sprinting:
-		target = ANIM_RUN
-	elif moving:
-		target = ANIM_WALK
-	elif crouching:
-		target = ANIM_CROUCH
-	else:
-		target = ANIM_IDLE
-
+	var target := _locomotion(moving)
+	anim.speed_scale = _locomotion_speed(target)
 	if anim.current_animation != target:
 		anim.play(target, 0.2)  # 0.2s crossfade
+
+
+func _locomotion(moving: bool) -> String:
+	if not is_on_floor():
+		return ANIM_AIR
+	if moving and (blocking or attacking):
+		return _aiming_step(ANIM_SNEAK if crouching else ANIM_WALK)
+	if moving and crouching:
+		return ANIM_SNEAK
+	if moving and sprinting:
+		return ANIM_RUN
+	if moving:
+		return ANIM_WALK
+	return ANIM_CROUCH if crouching else ANIM_IDLE
+
+
+## Which way the feet go for the way the hero is moving relative to where the model faces.
+func _aiming_step(forward_step: String) -> String:
+	var facing := Vector3(sin(model.rotation.y), 0.0, cos(model.rotation.y))
+	var ahead := Vector3(velocity.x, 0.0, velocity.z).dot(facing)
+	var side := Vector3(velocity.x, 0.0, velocity.z).dot(facing.cross(Vector3.UP))
+	if absf(side) > absf(ahead):
+		return ANIM_STRAFE_RIGHT if side > 0.0 else ANIM_STRAFE_LEFT
+	return forward_step if ahead > 0.0 else ANIM_BACKWARD
+
+
+func _locomotion_speed(target: String) -> float:
+	var sideways := target == ANIM_STRAFE_LEFT or target == ANIM_STRAFE_RIGHT
+	var factor := STRAFE_WALK_SPEED if sideways else 1.0
+	var steps_back := target == ANIM_BACKWARD
+	factor *= BACKWARD_SPEED if steps_back and not crouching else 1.0
+	return factor * (CROUCH_STEP_SPEED if crouching and (sideways or steps_back) else 1.0)
+
+
+## Guard and casts over the legs; with neither active the layer is switched off.
+func _update_upper() -> void:
+	if attacking:
+		return
+	if blocking:
+		_hold_guard()
+		return
+	if _upper.current_animation != "":
+		_upper.stop()
+
+
+func _hold_guard() -> void:
+	if _upper.is_playing() and _upper.current_animation.ends_with(_upper_name(ANIM_BLOCK)):
+		return
+	_play_upper(ANIM_BLOCK, 0.15)

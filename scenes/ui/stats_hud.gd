@@ -11,6 +11,7 @@ const MARGIN := Vector2(28.0, 24.0)
 const SPACING := 8
 
 var _badge: ProgressBadge
+var _flash := HitFlash.new()
 
 var _column := VBoxContainer.new()
 
@@ -21,6 +22,7 @@ func _ready() -> void:
 	_column.position = MARGIN
 	add_child(_column)
 	add_child(Crosshair.new())
+	add_child(_flash)
 
 
 func add_bar(kind: StatBar.Kind, fade_when_full := false) -> StatBar:
@@ -42,3 +44,8 @@ func badge() -> ProgressBadge:
 		_badge = ProgressBadge.new()
 		_column.add_child(_badge)
 	return _badge
+
+
+## Flashes the screen edges red; [param strength] is 0..1.
+func flash(strength: float) -> void:
+	_flash.pulse(strength)
