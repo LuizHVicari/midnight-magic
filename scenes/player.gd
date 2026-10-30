@@ -86,6 +86,19 @@ const XP_COLOR := Color(0.5, 0.9, 0.85)
 const BLOCK_TAKEN := 0.3
 ## The guard circle holds this much damage before it breaks, then cannot be raised for a while.
 ## It mends itself slowly once nothing has hit it for a few seconds.
+## Gliding: falling slowly while holding the glide spell, and gliding forward at this speed.
+const GLIDE_FALL := 2.2
+const GLIDE_SPEED := 9.5
+const GLIDE_GRAVITY := 0.25  # share of gravity left while gliding
+const GLIDE_TILT := 0.95  # radians the body leans forward
+## The hero's hips above their feet, which the lean pivots around.
+const HIPS := Vector3(0.0, 1.0, 0.0)
+## How fast a shove (from a bomb, say) fades, per second, on the ground, in the air and gliding.
+const SHOVE_DRAG := Vector3(7.0, 0.6, 0.35)
+const MAX_SHOVE := 26.0
+## The breeze cloak: footsteps this loud, and a walk this much faster.
+const BREEZE_NOISE := 0.3
+const BREEZE_SPEED := 1.35
 ## Quick slots: the primary button first, then the four ability keys. Any ability of the equipped
 ## element can sit in any of them.
 const SLOT_ACTIONS: Array[String] = ["attack", "ability_1", "ability_2", "ability_3", "ability_4", "ability_5"]
@@ -158,6 +171,12 @@ var dashing := false
 ## How many lights of the hero's own (like the sentinel orb) are burning; they make the hero
 ## easier for foes to notice.
 var glow_sources := 0
+## True while the glide spell holds the hero up in the air.
+var gliding := false
+## Seconds left of the breeze cloak: quiet footsteps and a faster walk.
+var breeze_left := 0.0
+var _shove := Vector3.ZERO  # sideways speed from shoves; fades, and adds to walking
+var _lean := 0.0
 var _dash_from := Vector3.ZERO
 var _dash_to := Vector3.ZERO
 var _dash_time := 0.1
@@ -256,7 +275,7 @@ func _build_health() -> void:
 	health.changed.connect($Hud.add_bar(StatBar.Kind.HEALTH).set_value)
 	health.changed.emit(health.value, health.maximum)
 	health.damaged.connect(_on_hurt)
-	health.pushed.connect(func(shove: Vector3) -> void: velocity += shove)
+	health.pushed.connect(_on_shoved)
 	health.died.connect(_on_died)
 
 
@@ -389,7 +408,8 @@ func noise_level() -> float:
 	var level := 0.15
 	if moving:
 		level = 2.0 if sprinting else (0.35 if crouching else 1.0)
-	return level + (1.5 if attacking else 0.0)
+	var noise := level + (1.5 if attacking else 0.0)
+	return noise * (BREEZE_NOISE if breeze_left > 0.0 else 1.0)
 
 
 ## Points of the body that enemies try to see: head and chest. Crouching lowers them, so low
@@ -547,6 +567,7 @@ func _process(delta: float) -> void:
 	_place_shield()
 	_apply_shake(delta)
 	_tick_shield(delta)
+	breeze_left = maxf(breeze_left - delta, 0.0)
 	spring_arm.spring_length = lerpf(
 		spring_arm.spring_length,
 		target_zoom,
@@ -560,7 +581,11 @@ func _physics_process(delta: float) -> void:
 	if dashing:
 		_step_dash(delta)
 		return
-	if not is_on_floor():
+	if gliding and is_on_floor():
+		gliding = false
+	if gliding:
+		_glide_fall(delta)
+	elif not is_on_floor():
 		var gravity := get_gravity() * gravity_scale
 		if velocity.y < 0.0:
 			gravity *= fall_multiplier
@@ -575,18 +600,21 @@ func _physics_process(delta: float) -> void:
 	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var yaw_basis := Basis(Vector3.UP, camera_pivot.rotation.y)
 	var direction := (yaw_basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
+	if gliding and direction == Vector3.ZERO:
+		direction = yaw_basis * Vector3.FORWARD  # a glide keeps moving the way the camera looks
 
 	var move_speed := _move_speed()
+	_fade_shove(delta)
 	if direction:
-		velocity.x = direction.x * move_speed
-		velocity.z = direction.z * move_speed
+		velocity.x = direction.x * move_speed + _shove.x
+		velocity.z = direction.z * move_speed + _shove.z
 		# Model's visual front is its local +Z (scene has it flipped 180 degrees). Aiming keeps
 		# it facing the camera instead, and the legs walk backwards or sideways.
 		var target_yaw := atan2(direction.x, direction.z)
 		_turn_towards_movement(target_yaw, delta)
 	else:
-		velocity.x = move_toward(velocity.x, 0.0, move_speed)
-		velocity.z = move_toward(velocity.z, 0.0, move_speed)
+		velocity.x = _shove.x
+		velocity.z = _shove.z
 
 	_update_stamina(delta, direction != Vector3.ZERO)
 	_update_mana(delta)
@@ -600,6 +628,7 @@ func _physics_process(delta: float) -> void:
 	_step_up(delta)
 	move_and_slide()
 	_update_animation()
+	_update_lean(delta)
 
 
 func _turn_towards_movement(target_yaw: float, delta: float) -> void:
@@ -645,8 +674,11 @@ func _update_stamina(delta: float, moving: bool) -> void:
 
 
 func _move_speed() -> float:
+	if gliding:
+		return GLIDE_SPEED
 	# Stance and activity stack: crouching while casting is slower than either alone.
 	var factor := 1.0
+	factor *= BREEZE_SPEED if breeze_left > 0.0 else 1.0
 	factor *= crouch_multiplier if crouching else 1.0
 	factor *= block_multiplier if blocking else 1.0
 	factor *= cast_multiplier if attacking else 1.0
@@ -764,6 +796,49 @@ func _hold_pose() -> void:
 	_hold_at = 0.0
 
 
+## A push from something (a wind bomb, a blast): the vertical part goes straight into the fall or
+## the climb, the sideways part is kept as speed that wears off. Pushing up cancels a fall first,
+## so a bomb underfoot always lifts.
+func _on_shoved(shove: Vector3) -> void:
+	_shove += Vector3(shove.x, 0.0, shove.z)
+	_shove = _shove.limit_length(MAX_SHOVE)
+	velocity.y = (maxf(velocity.y, 0.0) if shove.y > 0.0 else velocity.y) + shove.y
+
+
+func _fade_shove(delta: float) -> void:
+	var drag := SHOVE_DRAG.z if gliding else (SHOVE_DRAG.x if is_on_floor() else SHOVE_DRAG.y)
+	_shove *= exp(-drag * delta)
+	if is_on_wall():
+		_shove = _shove.slide(get_wall_normal())
+
+
+## Starts a glide: only in the air, and held until [method end_glide]. False if the hero is on
+## the ground or busy.
+func begin_glide() -> bool:
+	if gliding or dashing or is_on_floor():
+		return false
+	gliding = true
+	return true
+
+
+func end_glide() -> void:
+	gliding = false
+
+
+## Gravity is mostly cancelled: the fall is slowed down to a drift, and any climb eases off.
+func _glide_fall(delta: float) -> void:
+	velocity.y -= get_gravity().length() * gravity_scale * GLIDE_GRAVITY * delta
+	if velocity.y < -GLIDE_FALL:
+		velocity.y = move_toward(velocity.y, -GLIDE_FALL, 40.0 * delta)
+
+
+## Leans the whole body forward while gliding, turning about the hips rather than the feet.
+func _update_lean(delta: float) -> void:
+	_lean = lerpf(_lean, GLIDE_TILT if gliding else 0.0, 1.0 - exp(-8.0 * delta))
+	model.rotation.x = _lean
+	model.position = HIPS - model.basis * HIPS
+
+
 ## Carries the hero to [param to] (their feet) in [param time] seconds, unseen and untouchable on
 ## the way. False if they are busy with something else.
 func begin_dash(to: Vector3, time: float) -> bool:
@@ -797,7 +872,9 @@ func _step_dash(delta: float) -> void:
 		return
 	dashing = false
 	model.visible = true
-	velocity = (_dash_to - _dash_from).normalized() * speed * 0.8
+	var carry := (_dash_to - _dash_from).normalized() * speed * 0.8
+	_shove = Vector3(carry.x, 0.0, carry.z)
+	velocity.y = carry.y
 
 
 ## Where the camera is looking: the first thing in the way, or far ahead if there is none.

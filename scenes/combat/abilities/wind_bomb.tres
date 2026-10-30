@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Ability" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scenes/combat/ability.gd" id="1_ability"]
+[ext_resource type="Script" path="res://scenes/combat/wind_bomb_action.gd" id="2_action"]
+
+[resource]
+script = ExtResource("1_ability")
+display_name = "Wind Bomb"
+description = "A small ball of wind that throws everything near it away, you included. Cheap and quick to throw again and again: aimed at the ground under you it lifts you, so a stream of them can hold you in the air."
+cost = 6.0
+cooldown = 0.25
+action_script = ExtResource("2_action")
